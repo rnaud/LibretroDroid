@@ -120,6 +120,38 @@ bool Environment::environment_handle_get_variable(struct retro_variable* request
     return true;
 }
 
+bool Environment::environment_handle_set_memory_maps(const struct retro_memory_map* received) {
+    memoryMap.clear();
+    if (received == nullptr || received->descriptors == nullptr) {
+        return false;
+    }
+
+    for (unsigned i = 0; i < received->num_descriptors; i++) {
+        auto descriptor = received->descriptors[i];
+        memoryMap.push_back(MemoryDescriptor {
+            descriptor.flags,
+            descriptor.ptr,
+            descriptor.offset,
+            descriptor.start,
+            descriptor.select,
+            descriptor.disconnect,
+            descriptor.len,
+            descriptor.addrspace != nullptr ? std::string(descriptor.addrspace) : std::string(),
+        });
+        LOGD(
+            "Received memory descriptor %d: start 0x%zx len %zu select 0x%zx flags 0x%llx",
+            i, descriptor.start, descriptor.len, descriptor.select,
+            (unsigned long long) descriptor.flags
+        );
+    }
+
+    return true;
+}
+
+const std::vector<struct MemoryDescriptor> &Environment::getMemoryMap() const {
+    return memoryMap;
+}
+
 bool Environment::environment_handle_set_controller_info(const struct retro_controller_info* received) {
     controllers.clear();
 
@@ -317,6 +349,12 @@ bool Environment::handle_callback_environment(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
             LOGD("Called RETRO_ENVIRONMENT_SET_CONTROLLER_INFO");
             return environment_handle_set_controller_info(static_cast<const struct retro_controller_info*>(data));
+
+        case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+            LOGD("Called RETRO_ENVIRONMENT_SET_MEMORY_MAPS");
+            return getInstance().environment_handle_set_memory_maps(
+                static_cast<const struct retro_memory_map*>(data)
+            );
 
         case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE:
             LOGD("Called RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE");

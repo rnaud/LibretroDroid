@@ -52,6 +52,8 @@ public:
 
     static bool callback_environment(unsigned cmd, void *data);
 
+    bool environment_handle_set_memory_maps(const struct retro_memory_map* received);
+
     void setEnableVirtualFileSystem(bool value);
     void setEnableMicrophone(bool value);
 
@@ -108,6 +110,18 @@ public:
 
     const std::vector<std::vector<struct Controller>> &getControllers() const;
 
+    /**
+     * The core's memory map, if it published one.
+     *
+     * RetroAchievements addresses are in a *console* address space, not a core
+     * one, and translating between them is exactly what this map is for. A core
+     * that publishes it is the only thing that can say where the console's RAM
+     * actually lives. LibretroDroid discarded this callback entirely, so the map
+     * was unavailable and the only readable memory was whatever
+     * RETRO_MEMORY_SYSTEM_RAM happened to be.
+     */
+    const std::vector<struct MemoryDescriptor> &getMemoryMap() const;
+
 private:
     bool environment_handle_set_variables(const struct retro_variable* received);
     bool environment_handle_get_variable(struct retro_variable* requested);
@@ -148,6 +162,7 @@ private:
     bool dirtyVariables = false;
 
     std::vector<std::vector<struct Controller>> controllers;
+    std::vector<struct MemoryDescriptor> memoryMap;
 };
 
 struct Variable {
@@ -161,6 +176,26 @@ struct Controller {
 public:
     unsigned id;
     std::string description;
+};
+
+/**
+ * One entry of the core's memory map, copied out of `retro_memory_descriptor`.
+ *
+ * A copy rather than the core's own pointer: the descriptor array the core hands
+ * to the environment callback is only guaranteed valid for the duration of that
+ * call. The `ptr` inside it is stable for the core's lifetime, which is why the
+ * pointer itself is kept while the array is not.
+ */
+struct MemoryDescriptor {
+public:
+    uint64_t flags;
+    void* pointer;
+    size_t offset;
+    size_t start;
+    size_t select;
+    size_t disconnect;
+    size_t length;
+    std::string addressSpace;
 };
 
 #endif //LIBRETRODROID_ENVIRONMENT_H

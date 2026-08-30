@@ -262,6 +262,81 @@ JNIEXPORT jboolean JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_unseri
     return JNI_TRUE;
 }
 
+/**
+ * A direct ByteBuffer over one of the core's memory regions.
+ *
+ * `NewDirectByteBuffer` wraps the core's own pointer, so Kotlin reads it with no
+ * copy and no JNI call per byte — which is the only way a per-frame evaluator is
+ * affordable from managed code. The buffer is read-only to the caller by
+ * convention; writing through it would be poking the core's RAM, which is a cheat
+ * engine rather than an achievement reader.
+ *
+ * Valid until the core is unloaded. Null when the core maps nothing for this id.
+ */
+JNIEXPORT jobject JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemoryRegion(
+    JNIEnv* env,
+    jclass obj,
+    jint id
+) {
+    try {
+        auto [data, size] = LibretroDroid::getInstance().getMemoryRegion((unsigned) id);
+        if (data == nullptr || size == 0) {
+            return nullptr;
+        }
+        return env->NewDirectByteBuffer(data, (jlong) size);
+
+    } catch (std::exception &exception) {
+        LOGE("Error in getMemoryRegion: %s", exception.what());
+    }
+
+    return nullptr;
+}
+
+/** The core's memory map, or an empty array when it published none. */
+JNIEXPORT jobjectArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemoryMap(
+    JNIEnv* env,
+    jclass obj
+) {
+    try {
+        auto& descriptors = LibretroDroid::getInstance().getMemoryMap();
+
+        jclass descriptorClass =
+            env->FindClass("com/swordfish/libretrodroid/MemoryDescriptor");
+        jmethodID constructor = env->GetMethodID(
+            descriptorClass, "<init>", "(JJJJJJLjava/lang/String;)V"
+        );
+
+        jobjectArray result =
+            env->NewObjectArray(descriptors.size(), descriptorClass, nullptr);
+
+        for (int i = 0; i < descriptors.size(); i++) {
+            auto& descriptor = descriptors[i];
+            jstring space = env->NewStringUTF(descriptor.addressSpace.c_str());
+            jobject item = env->NewObject(
+                descriptorClass,
+                constructor,
+                (jlong) descriptor.flags,
+                (jlong) descriptor.offset,
+                (jlong) descriptor.start,
+                (jlong) descriptor.select,
+                (jlong) descriptor.disconnect,
+                (jlong) descriptor.length,
+                space
+            );
+            env->SetObjectArrayElement(result, i, item);
+            env->DeleteLocalRef(item);
+            env->DeleteLocalRef(space);
+        }
+
+        return result;
+
+    } catch (std::exception &exception) {
+        LOGE("Error in getMemoryMap: %s", exception.what());
+    }
+
+    return nullptr;
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_serializeSRAM(
     JNIEnv* env,
     jclass obj

@@ -70,6 +70,23 @@ public:
     std::pair<int8_t*, size_t> serializeState();
     bool unserializeState(int8_t *data, size_t size);
 
+    /**
+     * A pointer straight at one of the core's memory regions, and its size.
+     *
+     * Deliberately *not* a copy, unlike [serializeSRAM]. What reads this is an
+     * achievement evaluator looking at a few dozen addresses every frame, and
+     * copying a 2 MB region sixty times a second to answer that is the wrong
+     * shape entirely. The pointer a core returns from `retro_get_memory_data` is
+     * stable for the core's lifetime, so it can be handed out and held.
+     *
+     * The caller sees whatever the emulation thread has written so far, which for
+     * a value being read between frames is exactly right and for one read
+     * mid-frame may be torn. Achievements are evaluated between frames.
+     */
+    std::pair<void *, size_t> getMemoryRegion(unsigned id);
+
+    const std::vector<struct MemoryDescriptor> &getMemoryMap();
+
     std::pair<int8_t *, size_t> serializeSRAM();
     jboolean unserializeSRAM(int8_t *data, size_t size);
 

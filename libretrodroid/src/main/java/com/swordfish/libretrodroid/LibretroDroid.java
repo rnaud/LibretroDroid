@@ -75,6 +75,15 @@ public class LibretroDroid {
     public static final int ERROR_LOAD_GAME = 1;
     public static final int ERROR_GL_NOT_COMPATIBLE = 2;
     public static final int ERROR_SERIALIZATION = 3;
+    /** RETRO_MEMORY_SAVE_RAM, the battery-backed save. */
+    public static final int MEMORY_SAVE_RAM = 0;
+
+    /** RETRO_MEMORY_SYSTEM_RAM, the console's working RAM. */
+    public static final int MEMORY_SYSTEM_RAM = 2;
+
+    /** RETRO_MEMORY_VIDEO_RAM. */
+    public static final int MEMORY_VIDEO_RAM = 3;
+
     public static final int ERROR_CHEAT = 4;
     public static final int ERROR_GENERIC = -1;
 
@@ -121,6 +130,21 @@ public class LibretroDroid {
 
     public static native void setCheat(int index, boolean enable, String code);
     public static native void resetCheat();
+
+    /**
+     * A direct, zero-copy view of one of the core's memory regions.
+     *
+     * <p>{@code id} is a {@code RETRO_MEMORY_*} constant — see
+     * {@link #MEMORY_SYSTEM_RAM} and {@link #MEMORY_SAVE_RAM}. Returns null when
+     * the core maps nothing there, which is common for save RAM.
+     *
+     * <p>Valid until the core is unloaded, and readable while the game runs: a
+     * value read between frames is consistent, one read mid-frame may be torn.
+     */
+    public static native java.nio.ByteBuffer getMemoryRegion(int id);
+
+    /** The core's memory map, empty when it published none. */
+    public static native MemoryDescriptor[] getMemoryMap();
 
     public static native byte[] serializeSRAM();
     public static native boolean unserializeSRAM(byte[] sram);

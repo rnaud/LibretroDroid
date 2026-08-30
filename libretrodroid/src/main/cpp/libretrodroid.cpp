@@ -171,6 +171,29 @@ JNIEXPORT jboolean JNICALL LibretroDroid::unserializeSRAM(int8_t* data, size_t s
     return true;
 }
 
+std::pair<void*, size_t> LibretroDroid::getMemoryRegion(unsigned id) {
+    std::lock_guard<std::mutex> lock(coreLock);
+
+    if (core == nullptr) {
+        return std::pair<void*, size_t>(nullptr, 0);
+    }
+
+    size_t size = core->retro_get_memory_size(id);
+    void* data = core->retro_get_memory_data(id);
+
+    // A core with nothing mapped for this id answers null, a zero size, or both.
+    // Not an error: plenty of cores expose no save RAM at all.
+    if (data == nullptr || size == 0) {
+        return std::pair<void*, size_t>(nullptr, 0);
+    }
+
+    return std::pair<void*, size_t>(data, size);
+}
+
+const std::vector<struct MemoryDescriptor> &LibretroDroid::getMemoryMap() {
+    return Environment::getInstance().getMemoryMap();
+}
+
 std::pair<int8_t*, size_t> LibretroDroid::serializeSRAM() {
     std::lock_guard<std::mutex> lock(coreLock);
 
