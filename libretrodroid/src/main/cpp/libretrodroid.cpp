@@ -25,6 +25,7 @@
 #include <unordered_set>
 
 #include "libretrodroid.h"
+#include "achievements.h"
 #include "utils/libretrodroidexception.h"
 #include "log.h"
 #include "core.h"
@@ -479,8 +480,14 @@ void LibretroDroid::step() {
         frames = std::min(requestedFrames, 2u);
     }
 
-    for (size_t i = 0; i < frames * frameSpeed; i++)
+    for (size_t i = 0; i < frames * frameSpeed; i++) {
         core->retro_run();
+        // Between frames, not during one: a value read mid-frame may be torn, and
+        // rcheevos assumes it is looking at a settled frame. Inside the loop
+        // rather than after it so a run that advanced two frames is evaluated
+        // twice -- an achievement with a hit count would otherwise miss one.
+        Achievements::getInstance().doFrame();
+    }
 
     if (video && !video->rendersInVideoCallback()) {
         video->renderFrame();

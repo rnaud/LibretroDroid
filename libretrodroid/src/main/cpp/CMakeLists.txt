@@ -13,6 +13,48 @@ include_directories (${OBOE_DIR}/src)
 
 include_directories("libretro/libretro-common/include")
 
+# rcheevos, for RetroAchievements condition evaluation.
+#
+# The runtime, the libretro memory mapping and rhash. Not rc_client or rapi:
+# those are the networking half and the app already does that in Kotlin.
+#
+# rhash is not optional even though the app hashes ROMs itself -- rc_libretro.c
+# includes disk identification, which references md5 and the hash iterator, and
+# the link is --no-undefined. Having it here is worth more than it costs anyway:
+# rcheevos' own hashing knows the per-console rules (an iNES header skipped, a
+# disc executable pulled out) that a plain file md5 gets wrong.
+include_directories("rcheevos/include")
+include_directories("rcheevos/src")
+
+set (RCHEEVOS
+        rcheevos/src/rcheevos/alloc.c
+        rcheevos/src/rcheevos/condition.c
+        rcheevos/src/rcheevos/condset.c
+        rcheevos/src/rcheevos/consoleinfo.c
+        rcheevos/src/rcheevos/format.c
+        rcheevos/src/rcheevos/lboard.c
+        rcheevos/src/rcheevos/memref.c
+        rcheevos/src/rcheevos/operand.c
+        rcheevos/src/rcheevos/rc_validate.c
+        rcheevos/src/rcheevos/richpresence.c
+        rcheevos/src/rcheevos/runtime.c
+        rcheevos/src/rcheevos/runtime_progress.c
+        rcheevos/src/rcheevos/trigger.c
+        rcheevos/src/rcheevos/value.c
+        rcheevos/src/rc_libretro.c
+        rcheevos/src/rc_util.c
+        rcheevos/src/rc_compat.c
+        rcheevos/src/rc_version.c
+        rcheevos/src/rhash/hash.c
+        rcheevos/src/rhash/hash_disc.c
+        rcheevos/src/rhash/hash_encrypted.c
+        rcheevos/src/rhash/hash_rom.c
+        rcheevos/src/rhash/hash_zip.c
+        rcheevos/src/rhash/cdreader.c
+        rcheevos/src/rhash/aes.c
+        rcheevos/src/rhash/md5.c
+)
+
 set (LIBRETRO_COMMON
         libretro/libretro-common/vfs/vfs_implementation.c
         libretro/libretro-common/string/stdstring.c
@@ -22,6 +64,9 @@ set (LIBRETRO_COMMON
 )
 
 add_library(libretrodroid SHARED
+        ${RCHEEVOS}
+        achievements.h
+        achievements.cpp
         libretrodroidjni.h
         libretrodroidjni.cpp
         libretrodroid.h

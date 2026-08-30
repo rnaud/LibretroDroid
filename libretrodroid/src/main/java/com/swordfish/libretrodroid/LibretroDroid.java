@@ -132,6 +132,34 @@ public class LibretroDroid {
     public static native void resetCheat();
 
     /**
+     * Activates a RetroAchievements set for the running game.
+     *
+     * <p>{@code consoleId} is RetroAchievements' own console numbering, and
+     * {@code definitions} are the {@code MemAddr} strings from its API, one per id.
+     * Returns how many rcheevos accepted — a definition it cannot parse costs that
+     * achievement rather than the set.
+     *
+     * <p>Evaluation then runs on the emulation thread, once per frame, until
+     * {@link #unloadAchievements()}. Nothing is sent anywhere: read
+     * {@link #pollAchievements()} and submit them yourself.
+     */
+    public static native int loadAchievements(int consoleId, int[] ids, String[] definitions);
+
+    public static native void unloadAchievements();
+
+    /**
+     * Achievement ids triggered since the last call.
+     *
+     * <p>Drained, so each unlock is reported exactly once. Polled rather than
+     * pushed because the alternative is calling into the VM from the emulation
+     * thread and blocking emulation on whatever the listener does.
+     */
+    public static native int[] pollAchievements();
+
+    /** Bytes of console memory the active set is watching. Zero when inactive. */
+    public static native long achievementMappedBytes();
+
+    /**
      * A direct, zero-copy view of one of the core's memory regions.
      *
      * <p>{@code id} is a {@code RETRO_MEMORY_*} constant — see

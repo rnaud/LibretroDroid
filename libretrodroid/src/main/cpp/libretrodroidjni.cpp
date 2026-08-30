@@ -27,6 +27,7 @@
 #include <optional>
 
 #include "libretrodroid.h"
+#include "achievements.h"
 #include "log.h"
 #include "core.h"
 #include "audio.h"
@@ -273,6 +274,79 @@ JNIEXPORT jboolean JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_unseri
  *
  * Valid until the core is unloaded. Null when the core maps nothing for this id.
  */
+/**
+ * Activates a RetroAchievements set for the running game.
+ *
+ * Returns how many definitions rcheevos accepted, so the caller can say "38 of 40"
+ * rather than guessing. Zero means nothing is being watched — either the console's
+ * memory could not be mapped or every definition was rejected.
+ */
+JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_loadAchievements(
+    JNIEnv* env,
+    jclass obj,
+    jint consoleId,
+    jintArray ids,
+    jobjectArray definitions
+) {
+    try {
+        jsize count = env->GetArrayLength(ids);
+        if (count != env->GetArrayLength(definitions)) {
+            LOGE("loadAchievements: %d ids against %d definitions", count,
+                 env->GetArrayLength(definitions));
+            return 0;
+        }
+
+        std::vector<std::pair<uint32_t, std::string>> parsed;
+        parsed.reserve(count);
+
+        jint* rawIds = env->GetIntArrayElements(ids, nullptr);
+        for (jsize i = 0; i < count; i++) {
+            auto definition = (jstring) env->GetObjectArrayElement(definitions, i);
+            const char* chars = env->GetStringUTFChars(definition, nullptr);
+            parsed.emplace_back((uint32_t) rawIds[i], std::string(chars));
+            env->ReleaseStringUTFChars(definition, chars);
+            env->DeleteLocalRef(definition);
+        }
+        env->ReleaseIntArrayElements(ids, rawIds, JNI_ABORT);
+
+        return Achievements::getInstance().start((uint32_t) consoleId, parsed);
+
+    } catch (std::exception &exception) {
+        LOGE("Error in loadAchievements: %s", exception.what());
+    }
+
+    return 0;
+}
+
+JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_unloadAchievements(
+    JNIEnv* env,
+    jclass obj
+) {
+    Achievements::getInstance().stop();
+}
+
+/** Ids triggered since the last call. Drained, so each unlock is reported once. */
+JNIEXPORT jintArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_pollAchievements(
+    JNIEnv* env,
+    jclass obj
+) {
+    auto triggered = Achievements::getInstance().takeTriggered();
+    jintArray result = env->NewIntArray(triggered.size());
+    if (!triggered.empty()) {
+        std::vector<jint> values(triggered.begin(), triggered.end());
+        env->SetIntArrayRegion(result, 0, values.size(), values.data());
+    }
+    return result;
+}
+
+/** How many bytes of console memory the set is actually watching. */
+JNIEXPORT jlong JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_achievementMappedBytes(
+    JNIEnv* env,
+    jclass obj
+) {
+    return (jlong) Achievements::getInstance().mappedBytes();
+}
+
 JNIEXPORT jobject JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemoryRegion(
     JNIEnv* env,
     jclass obj,
