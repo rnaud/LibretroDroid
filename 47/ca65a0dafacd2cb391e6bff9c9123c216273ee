@@ -1,0 +1,19 @@
+libretrodroid/build.gradle
+  s_96265cd6ade19a::t_3f479f34e24370 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "47ca65a0dafacd2cb391e6bff9c9123c216273ee",
+  "prompts": {},
+  "sessions": {
+    "s_96265cd6ade19a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62c5cb45-cf6c-482f-88fd-90b31f4c9197",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
