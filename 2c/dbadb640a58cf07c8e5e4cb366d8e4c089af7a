@@ -1,0 +1,31 @@
+libretrodroid/src/main/cpp/environment.cpp
+  s_96265cd6ade19a::t_cbb3b1f3ca6be1 123-154,353-358
+libretrodroid/src/main/cpp/environment.h
+  s_96265cd6ade19a::t_645db6894d4f89 55-56,113-124,165,181-200
+libretrodroid/src/main/cpp/libretrodroid.cpp
+  s_96265cd6ade19a::t_e7236e93dbad9c 174-196
+libretrodroid/src/main/cpp/libretrodroid.h
+  s_96265cd6ade19a::t_7ac7ec4c8e8231 73-89
+libretrodroid/src/main/cpp/libretrodroidjni.cpp
+  s_96265cd6ade19a::t_d295bab39c4ec7 265-339
+libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
+  s_96265cd6ade19a::t_ba7a6b8ec956f2 78-86,134-148
+libretrodroid/src/main/java/com/swordfish/libretrodroid/MemoryDescriptor.java
+  s_96265cd6ade19a::t_e3a9bdf404e156 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "2cdbadb640a58cf07c8e5e4cb366d8e4c089af7a",
+  "prompts": {},
+  "sessions": {
+    "s_96265cd6ade19a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62c5cb45-cf6c-482f-88fd-90b31f4c9197",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
