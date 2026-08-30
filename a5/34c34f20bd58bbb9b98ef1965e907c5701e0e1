@@ -1,0 +1,19 @@
+libretrodroid/consumer-rules.pro
+  s_96265cd6ade19a::t_aa0459cdfe7c75 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "a534c34f20bd58bbb9b98ef1965e907c5701e0e1",
+  "prompts": {},
+  "sessions": {
+    "s_96265cd6ade19a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62c5cb45-cf6c-482f-88fd-90b31f4c9197",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
