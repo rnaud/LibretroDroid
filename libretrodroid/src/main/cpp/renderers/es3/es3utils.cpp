@@ -15,6 +15,9 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <cmath>
+#include <stdexcept>
+
 #include "es3utils.h"
 
 #include "../../log.h"
@@ -27,7 +30,8 @@ std::unique_ptr<ES3Utils::Framebuffer> ES3Utils::createFramebuffer(
     bool linear,
     bool repeat,
     bool includeDepth,
-    bool includeStencil
+    bool includeStencil,
+    Format format
 ) {
     auto result = std::make_unique<Framebuffer>();
     result->width = width;
@@ -45,7 +49,18 @@ std::unique_ptr<ES3Utils::Framebuffer> ES3Utils::createFramebuffer(
     glBindFramebuffer(GL_FRAMEBUFFER, result->framebuffer);
 
     glBindTexture(GL_TEXTURE_2D, result->texture);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+    GLenum internalFormat = GL_RGBA8;
+    switch (format) {
+    case Format::HALF_FLOAT:
+        internalFormat = GL_RGBA16F;
+        break;
+    case Format::SRGB:
+        internalFormat = GL_SRGB8_ALPHA8;
+        break;
+    case Format::RGBA8:
+        break;
+    }
+    glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_MIRRORED_REPEAT : GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_MIRRORED_REPEAT : GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linear ? GL_LINEAR : GL_NEAREST);
@@ -96,15 +111,55 @@ void ES3Utils::deleteFramebuffer(std::unique_ptr<ES3Utils::Framebuffer> data) {
 std::unique_ptr<ES3Utils::Framebuffers> ES3Utils::buildShaderPasses(
     unsigned int width,
     unsigned int height,
+    unsigned int viewportWidth,
+    unsigned int viewportHeight,
     const libretrodroid::ShaderManager::Chain &shaders
 ) {
     auto result = std::make_unique<std::vector<std::unique_ptr<ES3Utils::Framebuffer>>>();
     auto passes = shaders.passes;
 
-    for (int i = 0; i < passes.size() - 1; ++i) {
+    // Guarded, and it matters: `passes.size()` is unsigned, so an empty chain
+    // makes `size() - 1` four billion and the loop below allocates until the
+    // process dies.
+    if (passes.empty()) {
+        return result;
+    }
+
+    auto sizeAlong = [](
+        ShaderManager::ScaleType type,
+        float scale,
+        unsigned int source,
+        unsigned int viewport
+    ) -> unsigned int {
+        switch (type) {
+        case ShaderManager::ScaleType::VIEWPORT:
+            return std::lround(viewport * scale);
+        case ShaderManager::ScaleType::ABSOLUTE:
+            // Already a pixel count, not a multiplier.
+            return std::lround(scale);
+        case ShaderManager::ScaleType::SOURCE:
+        default:
+            return std::lround(source * scale);
+        }
+    };
+
+    for (size_t i = 0; i + 1 < passes.size(); ++i) {
         auto pass = passes[i];
-        unsigned int passWidth = std::lround(width * pass.scale);
-        unsigned int passHeight = std::lround(height * pass.scale);
+        unsigned int passWidth = sizeAlong(pass.scaleTypeX, pass.scaleX, width, viewportWidth);
+        unsigned int passHeight = sizeAlong(pass.scaleTypeY, pass.scaleY, height, viewportHeight);
+
+        // A pass of no size is a GL error followed by a black screen, and the
+        // ways to get here are all somebody else's arithmetic: a viewport not yet
+        // measured, an absolute scale of zero, a source frame of nothing.
+        if (passWidth < 1) passWidth = 1;
+        if (passHeight < 1) passHeight = 1;
+
+        auto format = Format::RGBA8;
+        if (pass.floatFramebuffer) {
+            format = Format::HALF_FLOAT;
+        } else if (pass.srgbFramebuffer) {
+            format = Format::SRGB;
+        }
 
         std::unique_ptr<ES3Utils::Framebuffer> data = ES3Utils::createFramebuffer(
             passWidth,
@@ -112,7 +167,8 @@ std::unique_ptr<ES3Utils::Framebuffers> ES3Utils::buildShaderPasses(
             pass.linear,
             false,
             false,
-            false
+            false,
+            format
         );
         result->push_back(std::move(data));
     }

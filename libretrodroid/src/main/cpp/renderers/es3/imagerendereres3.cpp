@@ -53,7 +53,9 @@ void ImageRendererES3::initializeTextures(unsigned int width, unsigned int heigh
     for (auto& i : *framebuffers) {
         ES3Utils::deleteFramebuffer(std::move(i));
     }
-    framebuffers = libretrodroid::ES3Utils::buildShaderPasses(width, height, shaders);
+    framebuffers = libretrodroid::ES3Utils::buildShaderPasses(
+        width, height, viewportSize.first, viewportSize.second, shaders
+    );
 
     glBindTexture(GL_TEXTURE_2D, currentTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, glInternalFormat, width, height, 0, glFormat, glType, nullptr);
@@ -145,6 +147,12 @@ Renderer::PassData ImageRendererES3::getPassData(unsigned int layer) {
 
     if (layer > 0 && layer < framebuffers->size() + 1) {
         result.texture = framebuffers->at(layer - 1)->texture;
+    }
+
+    // Every pass that has already run this frame, so a preset can name one by
+    // number rather than only reaching the one immediately before it.
+    for (unsigned int done = 0; done < layer && done < framebuffers->size(); ++done) {
+        result.completed.push_back(framebuffers->at(done)->texture);
     }
 
     return result;

@@ -53,8 +53,18 @@ public class LibretroDroid {
     public static final String SHADER_CUSTOM_PARAM_PASS_VERTEX = "_VERTEX";
     public static final String SHADER_CUSTOM_PARAM_PASS_FRAGMENT = "_FRAGMENT";
     public static final String SHADER_CUSTOM_PARAM_PASS_LINEAR = "_LINEAR";
-    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE = "_SCALE";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE_X = "_SCALE_X";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE_Y = "_SCALE_Y";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE_TYPE_X = "_SCALE_TYPE_X";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE_TYPE_Y = "_SCALE_TYPE_Y";
+    public static final String SHADER_CUSTOM_PARAM_PASS_FLOAT_FB = "_FLOAT_FB";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SRGB_FB = "_SRGB_FB";
     public static final String SHADER_CUSTOM_PARAM_PASS_FLOAT = "_FLOAT_";
+    public static final String SHADER_CUSTOM_PARAM_LUTS = "LUTS";
+    public static final String SHADER_CUSTOM_PARAM_LUT_PATH = "_PATH";
+    public static final String SHADER_CUSTOM_PARAM_LUT_LINEAR = "_LINEAR";
+    public static final String SHADER_CUSTOM_PARAM_LUT_REPEAT = "_REPEAT";
+    public static final String SHADER_CUSTOM_PARAM_HISTORY = "HISTORY";
 
     public static final String SHADER_UPSCALE_CUT_PARAM_USE_DYNAMIC_BLEND = "USE_DYNAMIC_BLEND";
     public static final String SHADER_UPSCALE_CUT_PARAM_BLEND_MIN_CONTRAST_EDGE = "BLEND_MIN_CONTRAST_EDGE";

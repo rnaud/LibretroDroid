@@ -1535,47 +1535,44 @@ const std::string ShaderManager::cut3UpscalePass2Fragment =
 ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& config) {
     switch (config.type) {
     case Type::SHADER_DEFAULT: {
-        return { { { defaultShaderVertex, defaultShaderFragment, true, 1.0, {} } }, true };
+        return { { plainPass(defaultShaderVertex, defaultShaderFragment, true) }, true };
     }
 
     case Type::SHADER_CRT: {
-        return { { { defaultShaderVertex, crtShaderFragment, true, 1.0, {} } } , true };
+        return { { plainPass(defaultShaderVertex, crtShaderFragment, true) }, true };
     }
 
     case Type::SHADER_LCD: {
-        return { { { defaultShaderVertex, lcdShaderFragment, true, 1.0, {} } }, true };
+        return { { plainPass(defaultShaderVertex, lcdShaderFragment, true) }, true };
     }
 
     case Type::SHADER_SHARP: {
-        return { { { defaultShaderVertex, defaultSharpFragment, true, 1.0, {} } }, true };
+        return { { plainPass(defaultShaderVertex, defaultSharpFragment, true) }, true };
     }
 
     case Type::SHADER_UPSCALE_CUT: {
         std::string defines = buildDefines(cutUpscaleParams, config.params);
-        return { { {
+        return { { plainPass(
             defines + cutUpscaleVertex,
             defines + cutUpscaleFragment,
-            false,
-            1.0
-        } } , false };
+            false
+        ) } , false };
     }
 
     case Type::SHADER_UPSCALE_CUT2: {
         std::string defines = buildDefines(cut2UpscaleParams, config.params);
         return {
             {
-                {
+                plainPass(
                     defines + cut2UpscalePass0Vertex,
                     defines + cut2UpscalePass0Fragment,
-                    false,
-                    1.0
-                },
-                {
+                    false
+                ),
+                plainPass(
                     defines + cut2UpscalePass1Vertex,
                     defines + cut2UpscalePass1Fragment,
-                    false,
-                    1.0
-                }
+                    false
+                )
             },
             false
         };
@@ -1589,24 +1586,21 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
         std::string defines = buildDefines(cut3UpscaleParams, config.params);
         return {
             {
-                {
+                plainPass(
                     defines + cut3UpscalePass0Vertex,
                     defines + cut3UpscalePass0Fragment,
-                    false,
-                    1.0
-                    },
-                {
+                    false
+                ),
+                plainPass(
                     defines + cut3UpscalePass1Vertex,
                     defines + cut3UpscalePass1Fragment,
-                    false,
-                    1.0
-                    },
-                {
+                    false
+                ),
+                plainPass(
                     defines + cut3UpscalePass2Vertex,
                     defines + cut3UpscalePass2Fragment,
-                    false,
-                    1.0
-                },
+                    false
+                ),
             },
             false
         };
@@ -1625,6 +1619,22 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
  * not match the keys present — therefore falls back to the plain chain rather
  * than trusting the map.
  */
+ShaderManager::Pass ShaderManager::plainPass(
+    const std::string& vertex,
+    const std::string& fragment,
+    bool linear
+) {
+    // Field by field rather than a braced list. Pass has ten members now, most
+    // with defaults that matter — an aggregate initialiser here would silently
+    // put a value in the wrong one the next time a field is added, and the
+    // wrong one is `scaleY = 0`, which is a framebuffer of zero height.
+    Pass pass;
+    pass.vertex = vertex;
+    pass.fragment = fragment;
+    pass.linear = linear;
+    return pass;
+}
+
 ShaderManager::Chain ShaderManager::buildCustomChain(
     const std::unordered_map<std::string, std::string>& params
 ) {
@@ -1655,11 +1665,22 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
             break;
         }
 
-        float scale = 1.0F;
-        if (auto declared = lookup(prefix + PARAM_PASS_SCALE)) {
-            scale = std::strtof(declared->c_str(), nullptr);
-        }
-        if (!(scale > 0.0F)) scale = 1.0F;
+        auto scaleOf = [&](const char* key) {
+            float value = 1.0F;
+            if (auto declared = lookup(prefix + key)) {
+                value = std::strtof(declared->c_str(), nullptr);
+            }
+            // A scale of zero is a framebuffer of zero size, which is a GL error
+            // and then a black screen. Anything unusable falls back to 1.
+            return value > 0.0F ? value : 1.0F;
+        };
+        auto scaleTypeOf = [&](const char* key) {
+            auto declared = lookup(prefix + key);
+            if (!declared) return ScaleType::SOURCE;
+            if (*declared == "viewport") return ScaleType::VIEWPORT;
+            if (*declared == "absolute") return ScaleType::ABSOLUTE;
+            return ScaleType::SOURCE;
+        };
 
         // The parameter names are the shader's own, so they cannot be looked up
         // one by one — the map is walked instead, for keys under this pass's
@@ -1673,23 +1694,65 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
             floats[name] = std::strtof(entry.second.c_str(), nullptr);
         }
 
-        passes.push_back(
-            Pass {
-                vertex.value(),
-                fragment.value(),
-                isTrue(lookup(prefix + PARAM_PASS_LINEAR)),
-                scale,
-                floats
-            }
+        Pass pass = plainPass(
+            vertex.value(),
+            fragment.value(),
+            isTrue(lookup(prefix + PARAM_PASS_LINEAR))
         );
+        pass.scaleX = scaleOf(PARAM_PASS_SCALE_X);
+        pass.scaleY = scaleOf(PARAM_PASS_SCALE_Y);
+        pass.scaleTypeX = scaleTypeOf(PARAM_PASS_SCALE_TYPE_X);
+        pass.scaleTypeY = scaleTypeOf(PARAM_PASS_SCALE_TYPE_Y);
+        pass.floatFramebuffer = isTrue(lookup(prefix + PARAM_PASS_FLOAT_FB));
+        pass.srgbFramebuffer = isTrue(lookup(prefix + PARAM_PASS_SRGB_FB));
+        pass.floats = floats;
+        passes.push_back(pass);
     }
 
     if (passes.empty()) {
         LOGE("Custom shader declared no usable passes; falling back to the default.");
-        return { { { defaultShaderVertex, defaultShaderFragment, true, 1.0, {} } }, true };
+        return { { plainPass(defaultShaderVertex, defaultShaderFragment, true) }, true };
     }
 
-    return { passes, isTrue(lookup(PARAM_LINEAR_TEXTURE)) };
+    Chain chain;
+    chain.passes = passes;
+    chain.linearTexture = isTrue(lookup(PARAM_LINEAR_TEXTURE));
+
+    // Lookup textures, named by the preset. A name with no path is dropped
+    // rather than bound as nothing: an unbound sampler reads black, and a LUT
+    // read as black is a picture read as black.
+    if (auto declared = lookup(PARAM_LUTS)) {
+        std::string names = *declared;
+        size_t at = 0;
+        while (at <= names.size()) {
+            size_t next = names.find(';', at);
+            std::string name = names.substr(at, next == std::string::npos ? std::string::npos : next - at);
+            at = next == std::string::npos ? names.size() + 1 : next + 1;
+            if (name.empty()) continue;
+            auto path = lookup("LUT_" + name + PARAM_LUT_PATH);
+            if (!path || path->empty()) {
+                LOGE("Shader declares LUT '%s' with no path; dropping it.", name.c_str());
+                continue;
+            }
+            Lut lut;
+            lut.name = name;
+            lut.path = *path;
+            // Linear by default, which is what RetroArch does when the preset
+            // says nothing.
+            auto linear = lookup("LUT_" + name + PARAM_LUT_LINEAR);
+            lut.linear = !linear.has_value() || *linear == "true";
+            lut.repeat = isTrue(lookup("LUT_" + name + PARAM_LUT_REPEAT));
+            chain.luts.push_back(lut);
+        }
+    }
+
+    if (auto declared = lookup(PARAM_HISTORY)) {
+        chain.historyFrames = std::atoi(declared->c_str());
+        if (chain.historyFrames < 0) chain.historyFrames = 0;
+        if (chain.historyFrames > MAX_HISTORY) chain.historyFrames = MAX_HISTORY;
+    }
+
+    return chain;
 }
 
 std::string ShaderManager::buildDefines(
@@ -1707,7 +1770,13 @@ std::string ShaderManager::buildDefines(
 }
 
 bool ShaderManager::Chain::operator==(const ShaderManager::Chain &other) const {
-    return this->passes == other.passes && this->linearTexture == other.linearTexture;
+    return this->passes == other.passes && this->linearTexture == other.linearTexture &&
+           this->luts == other.luts && this->historyFrames == other.historyFrames;
+}
+
+bool ShaderManager::Lut::operator==(const ShaderManager::Lut &other) const {
+    return this->name == other.name && this->path == other.path &&
+           this->linear == other.linear && this->repeat == other.repeat;
 }
 
 bool ShaderManager::Chain::operator!=(const ShaderManager::Chain &other) const {
@@ -1715,7 +1784,11 @@ bool ShaderManager::Chain::operator!=(const ShaderManager::Chain &other) const {
 }
 
 bool ShaderManager::Pass::operator==(const ShaderManager::Pass &other) const {
-    return this->linear == other.linear && this->scale == other.scale &&
+    return this->linear == other.linear &&
+           this->scaleX == other.scaleX && this->scaleY == other.scaleY &&
+           this->scaleTypeX == other.scaleTypeX && this->scaleTypeY == other.scaleTypeY &&
+           this->floatFramebuffer == other.floatFramebuffer &&
+           this->srgbFramebuffer == other.srgbFramebuffer &&
            this->vertex == other.vertex && this->fragment == other.fragment &&
            this->floats == other.floats;
 }

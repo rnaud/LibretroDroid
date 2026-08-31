@@ -34,6 +34,17 @@ public:
         std::optional<unsigned int> texture = std::nullopt;
         std::optional<unsigned int> width = std::nullopt;
         std::optional<unsigned int> height = std::nullopt;
+
+        /**
+         * Every completed pass's output texture, oldest first.
+         *
+         * [texture] is the immediately previous one and stays for the sake of the
+         * `previousPass` uniform this library has always had. This is what lets a
+         * preset name an *earlier* pass — RetroArch's `Pass0`, `PassPrev2` — which
+         * before now resolved to an unbound sampler, and an unbound sampler reads
+         * black.
+         */
+        std::vector<unsigned int> completed;
     };
 
 public:
@@ -50,6 +61,17 @@ public:
 
 public:
     std::pair<int, int> lastFrameSize;
+
+    /**
+     * The size of the area actually drawn on screen, in pixels.
+     *
+     * Set by Video before the shaders are built, because a `scale_type =
+     * viewport` pass is a multiple of *this* and the renderer knows only the
+     * source frame. Not the screen size: the drawn quad is letterboxed to the
+     * core's declared aspect ratio, so on a 4:3 handheld playing a 320x224 Mega
+     * Drive game the two differ by the pixel-aspect factor.
+     */
+    std::pair<int, int> viewportSize = { 0, 0 };
 };
 
 }

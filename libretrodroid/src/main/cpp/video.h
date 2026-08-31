@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "renderers/es3/es3utils.h"
 #include "renderers/renderer.h"
 #include "shadermanager.h"
 #include "utils/rect.h"
@@ -67,6 +68,34 @@ public:
         GLint gRetroOutputSizeHandle = -1;
         GLint gFrameCountHandle = -1;
         GLint gFrameDirectionHandle = -1;
+
+        /**
+         * `Original` / `OrigTexture` — the frame the core produced, before any
+         * pass touched it.
+         *
+         * Free to supply, because unit 0 already holds exactly that. Not
+         * supplying it is not free: `crt-interlaced-halation` blends its blurred
+         * passes back against the original, and with the sampler unbound reading
+         * black the blend saturated and the whole screen came out **pure white**.
+         * It compiled, linked and ran at full frame rate doing it.
+         */
+        GLint gOriginalHandle = -1;
+        GLint gOriginalSizeHandle = -1;
+
+        /**
+         * `Pass0`..`PassN` and `PassPrev1`..`PassPrevN`, resolved once at link.
+         *
+         * Location and the index of the completed pass it wants, so the bind
+         * loop needs no arithmetic and a name the shader does not declare costs
+         * nothing per frame.
+         */
+        std::vector<std::pair<GLint, int>> passSamplers;
+
+        /** `Prev1`..`PrevN` — location and how many frames back. */
+        std::vector<std::pair<GLint, int>> historySamplers;
+
+        /** The chain's LUTs — location and index into [lutTextures]. */
+        std::vector<std::pair<GLint, int>> lutSamplers;
 
         /**
          * The preset's own `#pragma parameter` uniforms, resolved once at link.
@@ -141,6 +170,38 @@ private:
      * a static pattern rather than the effect they describe.
      */
     unsigned int frameCount = 0;
+
+    /**
+     * Earlier source frames, newest last, for a chain that reads `PrevN`.
+     *
+     * Empty for almost everything. Filled by blitting the source into the oldest
+     * slot each frame and rotating, rather than by copying textures around: one
+     * `glBlitFramebuffer` at source resolution is the cheapest way to keep a
+     * frame, and the alternative is an extra full-screen draw.
+     */
+    std::vector<std::unique_ptr<ES3Utils::Framebuffer>> history;
+
+    /**
+     * A framebuffer that exists only to be read from.
+     *
+     * The source is a plain texture on the image renderers, not a framebuffer,
+     * so there is nothing to blit *from* without one. The source texture is
+     * attached to this each frame — one call, and it avoids a second code path
+     * for the two renderer kinds.
+     */
+    unsigned int historyReadFramebuffer = 0;
+
+    /** The chain's lookup textures, in the order the chain declared them. */
+    std::vector<unsigned int> lutTextures;
+
+    /** How many texture units the driver will let a fragment shader sample. */
+    int maxTextureUnits = 8;
+
+    void syncViewportSize();
+    void updateHistory();
+    void loadLuts(const ShaderManager::Chain& chain);
+    void releaseLuts();
+    void releaseHistory(int wanted);
 
     std::vector<ShaderChainEntry> shadersChain;
 

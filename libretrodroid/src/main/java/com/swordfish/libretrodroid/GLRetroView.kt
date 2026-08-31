@@ -480,18 +480,43 @@ class GLRetroView(
         val params = mutableMapOf(
             LibretroDroid.SHADER_CUSTOM_PARAM_PASSES to config.passes.size.toString(),
             LibretroDroid.SHADER_CUSTOM_PARAM_LINEAR_TEXTURE to toParam(config.linearTexture),
+            LibretroDroid.SHADER_CUSTOM_PARAM_HISTORY to config.historyFrames.toString(),
         )
         config.passes.forEachIndexed { index, pass ->
             val prefix = "PASS_$index"
             params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_VERTEX] = pass.vertex
             params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FRAGMENT] = pass.fragment
             params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_LINEAR] = toParam(pass.linear)
-            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE] = toParam(pass.scale)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE_X] = toParam(pass.scaleX)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE_Y] = toParam(pass.scaleY)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE_TYPE_X] =
+                toParam(pass.scaleTypeX)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE_TYPE_Y] =
+                toParam(pass.scaleTypeY)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FLOAT_FB] =
+                toParam(pass.floatFramebuffer)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SRGB_FB] =
+                toParam(pass.srgbFramebuffer)
             pass.floats.forEach { (name, value) ->
                 params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FLOAT + name] = toParam(value)
             }
         }
+        if (config.luts.isNotEmpty()) {
+            params[LibretroDroid.SHADER_CUSTOM_PARAM_LUTS] = config.luts.joinToString(";") { it.name }
+            config.luts.forEach { lut ->
+                val prefix = "LUT_${lut.name}"
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_PATH] = lut.path
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_LINEAR] = toParam(lut.linear)
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_REPEAT] = toParam(lut.repeat)
+            }
+        }
         return params
+    }
+
+    private fun toParam(param: ShaderConfig.Custom.ScaleType): String = when (param) {
+        ShaderConfig.Custom.ScaleType.SOURCE -> "source"
+        ShaderConfig.Custom.ScaleType.VIEWPORT -> "viewport"
+        ShaderConfig.Custom.ScaleType.ABSOLUTE -> "absolute"
     }
 
     private fun toParam(param: Float): String {

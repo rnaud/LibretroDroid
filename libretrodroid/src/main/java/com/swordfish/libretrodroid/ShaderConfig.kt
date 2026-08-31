@@ -48,6 +48,17 @@ sealed interface ShaderConfig {
     data class Custom(
         val passes: List<Pass>,
         val linearTexture: Boolean = false,
+        /** Lookup textures, bound by the name the preset gave them. */
+        val luts: List<Lut> = emptyList(),
+        /**
+         * How many earlier source frames to keep, for a preset reading `PrevN`.
+         *
+         * Capped at three in the library. Each costs a texture the size of the
+         * frame and one blit per frame, and there are only so many texture units
+         * — GLES2 guarantees eight in a fragment shader, and a chain already
+         * spends units on the source, the previous pass, earlier passes and LUTs.
+         */
+        val historyFrames: Int = 0,
     ) : ShaderConfig {
 
         /**
@@ -58,11 +69,45 @@ sealed interface ShaderConfig {
          *   frame — RetroArch's `scaleN` with `scale_typeN = source`. Ignored on
          *   the last pass, which draws straight to the screen.
          */
+        /**
+         * A lookup texture, handed over as **raw pixels rather than a PNG**.
+         *
+         * [path] points at a file of `LUT1`, width and height as little-endian
+         * 32-bit ints, then tightly packed RGBA. The caller decodes the image —
+         * on Android it already has `BitmapFactory` — rather than this library
+         * compiling in an image decoder for one feature.
+         */
+        data class Lut(
+            val name: String,
+            val path: String,
+            val linear: Boolean = true,
+            val repeat: Boolean = false,
+        )
+
+        /**
+         * How a pass's framebuffer is sized, per axis — `scale_typeN`.
+         *
+         * [VIEWPORT] is a multiple of the area actually drawn on screen and
+         * [ABSOLUTE] a pixel count. The difference from [SOURCE] is not
+         * cosmetic: a blur written against the viewport and given the source runs
+         * at the console's resolution, which is cheaper and visibly softer.
+         */
+        enum class ScaleType { SOURCE, VIEWPORT, ABSOLUTE }
+
         data class Pass(
             val vertex: String,
             val fragment: String,
             val linear: Boolean = false,
-            val scale: Float = 1.0f,
+            val scaleX: Float = 1.0f,
+            val scaleY: Float = 1.0f,
+            val scaleTypeX: ScaleType = ScaleType.SOURCE,
+            val scaleTypeY: ScaleType = ScaleType.SOURCE,
+            /**
+             * Ask for more than 8 bits a channel — `float_framebuffer` and
+             * `srgb_framebuffer`. A preset denied these does not fail, it bands.
+             */
+            val floatFramebuffer: Boolean = false,
+            val srgbFramebuffer: Boolean = false,
             /**
              * The preset's `#pragma parameter` values, by the shader's own name.
              *

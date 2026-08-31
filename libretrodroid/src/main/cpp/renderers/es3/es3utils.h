@@ -42,9 +42,31 @@ public:
 public:
     using Framebuffers = std::vector<std::unique_ptr<ES3Utils::Framebuffer>>;
 
+    /**
+     * How many bits a framebuffer keeps per channel.
+     *
+     * `HALF_FLOAT` needs `EXT_color_buffer_half_float`, which every ES3 driver
+     * this app has met provides; the fallback is not an error but a *band*, so
+     * it is logged rather than thrown.
+     */
+    enum class Format {
+        RGBA8,
+        HALF_FLOAT,
+        SRGB,
+    };
+
+    /**
+     * One framebuffer per intermediate pass.
+     *
+     * @param viewportWidth the size of the area actually drawn on screen, which
+     *   is what a `scale_type = viewport` pass is a multiple of. Not the same as
+     *   the screen: the drawn quad is letterboxed to the core's aspect ratio.
+     */
     static std::unique_ptr<Framebuffers> buildShaderPasses(
         unsigned int width,
         unsigned int height,
+        unsigned int viewportWidth,
+        unsigned int viewportHeight,
         const ShaderManager::Chain &shaders
     );
 
@@ -54,7 +76,8 @@ public:
         bool linear,
         bool repeat,
         bool includeDepth,
-        bool includeStencil
+        bool includeStencil,
+        Format format = Format::RGBA8
     );
 
     static void deleteFramebuffer(std::unique_ptr<Framebuffer> data);
