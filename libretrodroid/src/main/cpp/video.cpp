@@ -198,10 +198,12 @@ void Video::updateProgram() {
         if (shader.gOriginalHandle == -1) {
             shader.gOriginalHandle = glGetUniformLocation(shader.gProgram, "Original");
         }
-        shader.gOriginalSizeHandle = glGetUniformLocation(shader.gProgram, "OrigTextureSize");
-        if (shader.gOriginalSizeHandle == -1) {
-            shader.gOriginalSizeHandle = glGetUniformLocation(shader.gProgram, "OrigInputSize");
-        }
+        // Both names, separately. A shader may declare either or both, and one
+        // that declares both usually does so in order to divide them.
+        shader.gOriginalTextureSizeHandle =
+            glGetUniformLocation(shader.gProgram, "OrigTextureSize");
+        shader.gOriginalInputSizeHandle =
+            glGetUniformLocation(shader.gProgram, "OrigInputSize");
 
         // **Two spellings, and only one of them is the right one here.**
         // RetroArch's *slang* shaders name these `Pass2` and `Prev1`; its *GLSL*
@@ -396,8 +398,15 @@ void Video::renderFrame() {
         if (shader.gOriginalHandle != -1) {
             glUniform1i(shader.gOriginalHandle, 0);
         }
-        if (shader.gOriginalSizeHandle != -1) {
-            glUniform2f(shader.gOriginalSizeHandle, getTextureWidth(), getTextureHeight());
+        if (shader.gOriginalTextureSizeHandle != -1) {
+            glUniform2f(
+                shader.gOriginalTextureSizeHandle, getTextureWidth(), getTextureHeight()
+            );
+        }
+        if (shader.gOriginalInputSizeHandle != -1) {
+            glUniform2f(
+                shader.gOriginalInputSizeHandle, getTextureWidth(), getTextureHeight()
+            );
         }
 
         glUniform2f(shader.gTextureSizeHandle, getTextureWidth(), getTextureHeight());

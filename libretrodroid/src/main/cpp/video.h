@@ -80,7 +80,24 @@ public:
          * It compiled, linked and ran at full frame rate doing it.
          */
         GLint gOriginalHandle = -1;
-        GLint gOriginalSizeHandle = -1;
+
+        /**
+         * `OrigTextureSize` and `OrigInputSize` — **both**, not either.
+         *
+         * These were one handle taking whichever name resolved, and that was a
+         * bug with a spectacular symptom: `crt-interlaced-halation` declares both
+         * and *divides one by the other*
+         * (`cd *= OrigTextureSize / OrigInputSize`), so leaving the second at zero
+         * gave it infinity, the composite saturated, and the shader rendered
+         * **pure white**. It compiled, linked and ran at full frame rate doing it,
+         * and was dropped from the bundled set for two releases as unexplainable.
+         *
+         * For this pipeline the original frame *is* the source texture, so both
+         * are the frame size and the ratio is 1 — which is exactly what the shader
+         * expects when the texture is not padded.
+         */
+        GLint gOriginalTextureSizeHandle = -1;
+        GLint gOriginalInputSizeHandle = -1;
 
         /**
          * `Pass0`..`PassN` and `PassPrev1`..`PassPrevN`, resolved once at link.
