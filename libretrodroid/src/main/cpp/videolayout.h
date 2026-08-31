@@ -18,7 +18,9 @@
 #ifndef LIBRETRODROID_VIDEOLAYOUT_H
 #define LIBRETRODROID_VIDEOLAYOUT_H
 
+#include <algorithm>
 #include <array>
+#include <utility>
 
 #include "utils/rect.h"
 
@@ -47,6 +49,34 @@ public:
     std::array<float, 12>& getFramebufferVertices() { return framebufferVertices; }
     std::array<float, 12>& getTextureCoordinates() { return textureCoordinates; }
     std::array<float, 4>& getRelativeForegroundBounds() { return relativeForegroundBounds; }
+
+    /**
+     * The drawn quad's size in pixels — RetroArch's `OutputSize`.
+     *
+     * Not `screenSize`, and not `textureSize * screenDensity` either. The
+     * foreground quad is letterboxed to the *core's* declared aspect ratio,
+     * which for a Mega Drive's 320x224 at 4:3 is nothing like the texture's own
+     * ratio — so the two shortcuts are both wrong by the pixel-aspect factor,
+     * and a CRT shader's scanline count is computed straight off this number.
+     *
+     * Measured off the vertices rather than recomputed, so it cannot drift from
+     * what was actually drawn, and taken as their bounding box so a rotated
+     * quad reports the screen footprint it really covers.
+     */
+    std::pair<float, float> getForegroundSizeInPixels() {
+        float minX = foregroundVertices[0], maxX = foregroundVertices[0];
+        float minY = foregroundVertices[1], maxY = foregroundVertices[1];
+        for (int i = 0; i < 6; ++i) {
+            minX = std::min(minX, foregroundVertices[i * 2]);
+            maxX = std::max(maxX, foregroundVertices[i * 2]);
+            minY = std::min(minY, foregroundVertices[i * 2 + 1]);
+            maxY = std::max(maxY, foregroundVertices[i * 2 + 1]);
+        }
+        return {
+            (maxX - minX) * 0.5F * (float) screenWidth,
+            (maxY - minY) * 0.5F * (float) screenHeight
+        };
+    }
 
     int getScreenWidth() { return screenWidth; }
 

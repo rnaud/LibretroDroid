@@ -21,6 +21,8 @@
 #include <GLES2/gl2.h>
 #include <optional>
 #include <array>
+#include <utility>
+#include <vector>
 
 #include "renderers/renderer.h"
 #include "shadermanager.h"
@@ -51,6 +53,31 @@ public:
         GLint gPreviousPassTextureHandle = 0;
         GLint gScreenDensityHandle = 0;
         GLint gTextureSizeHandle = 0;
+
+        // RetroArch's own names for the same things, so a shader written for
+        // RetroArch compiles here unmodified. Every one is -1 when the shader
+        // does not declare it, which is what the built-in chains all are.
+        GLint gVertexCoordHandle = -1;
+        GLint gTexCoordHandle = -1;
+        GLint gColorHandle = -1;
+        GLint gMVPMatrixHandle = -1;
+        GLint gRetroTextureHandle = -1;
+        GLint gRetroTextureSizeHandle = -1;
+        GLint gRetroInputSizeHandle = -1;
+        GLint gRetroOutputSizeHandle = -1;
+        GLint gFrameCountHandle = -1;
+        GLint gFrameDirectionHandle = -1;
+
+        /**
+         * The preset's own `#pragma parameter` uniforms, resolved once at link.
+         *
+         * Location and value together, because the names are the shader's and
+         * there is nothing to look them up against later. A location of -1 is
+         * dropped here rather than checked every frame: a preset commonly
+         * declares a parameter it only uses in one of the two stages, or behind
+         * an `#ifdef` that is off.
+         */
+        std::vector<std::pair<GLint, float>> floatUniforms;
     };
 
     Video(
@@ -104,6 +131,16 @@ private:
 
     bool isDirty = false;
     bool skipDuplicateFrames = false;
+
+    /**
+     * Frames drawn since the view was created — RetroArch's `FrameCount`.
+     *
+     * Only 11 of the 158 portable single-pass presets actually read it (the rest
+     * merely declare it in the shared boilerplate), but the ones that do are the
+     * animated ones — interlacing, flicker, dithering — and without it they are
+     * a static pattern rather than the effect they describe.
+     */
+    unsigned int frameCount = 0;
 
     std::vector<ShaderChainEntry> shadersChain;
 

@@ -24,6 +24,60 @@ sealed interface ShaderConfig {
     object LCD : ShaderConfig
     object Sharp : ShaderConfig
 
+    /**
+     * A chain of passes given as GLSL source, rather than one of the built-ins.
+     *
+     * This is what makes a RetroArch `.glslp` preset usable: the library answers
+     * to RetroArch's own uniform and attribute names — `VertexCoord`, `TexCoord`,
+     * `COLOR`, `MVPMatrix`, `Texture`, `TextureSize`, `InputSize`, `OutputSize`,
+     * `FrameCount`, `FrameDirection` — alongside its own, so a preset from
+     * libretro/glsl-shaders compiles unmodified. The caller prepends
+     * `#define VERTEX` or `#define FRAGMENT` to select the half it wants, which
+     * is how RetroArch compiles those single-file shaders too.
+     *
+     * Two limits, and they are the honest boundary of this approach: there is no
+     * frame history, so a preset reading `PrevN`, `Feedback` or `PassPrev` cannot
+     * run; and an intermediate pass is sized as a multiple of the *source*
+     * frame, so `scale_type = viewport` cannot be expressed. Measured against
+     * libretro/glsl-shaders, 176 of its 619 presets are inside both limits.
+     *
+     * @param linearTexture how the source frame is sampled — RetroArch's
+     *   `filter_linear0`. False is nearest, which is what RetroArch on Android
+     *   defaults to.
+     */
+    data class Custom(
+        val passes: List<Pass>,
+        val linearTexture: Boolean = false,
+    ) : ShaderConfig {
+
+        /**
+         * @param linear how *this* pass's output is sampled by the next one,
+         *   which is RetroArch's `filter_linear` for the following pass rather
+         *   than for this one.
+         * @param scale this pass's framebuffer size as a multiple of the source
+         *   frame — RetroArch's `scaleN` with `scale_typeN = source`. Ignored on
+         *   the last pass, which draws straight to the screen.
+         */
+        data class Pass(
+            val vertex: String,
+            val fragment: String,
+            val linear: Boolean = false,
+            val scale: Float = 1.0f,
+            /**
+             * The preset's `#pragma parameter` values, by the shader's own name.
+             *
+             * Set as float uniforms, which is what the shaders are written to
+             * expect: the usual shape is
+             * `#ifdef PARAMETER_UNIFORM uniform float FOO; #else #define FOO 0.45 #endif`,
+             * so a caller that defines `PARAMETER_UNIFORM` and sets `FOO` here
+             * gets the branch the author intended. A name no pass declares is
+             * dropped at link rather than being an error, so passing the whole
+             * map to every pass is correct.
+             */
+            val floats: Map<String, Float> = emptyMap(),
+        )
+    }
+
     data class CUT(
         val useDynamicBlend: Boolean = true,
         val blendMinContrastEdge: Float = 0.0f,

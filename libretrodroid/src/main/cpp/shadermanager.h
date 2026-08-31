@@ -32,6 +32,18 @@ public:
         bool linear;
         float scale;
 
+        /**
+         * The shader's own `#pragma parameter` values, as float uniforms.
+         *
+         * Uniforms rather than `#define`s, which is the route RetroArch takes
+         * and the only one that is safe: a preset written the usual way carries
+         * `#ifdef PARAMETER_UNIFORM ... #else #define BLURSCALEX 0.45 #endif`,
+         * so injecting a `#define` of our own puts two conflicting definitions of
+         * one macro in the same translation unit. Defining `PARAMETER_UNIFORM`
+         * and setting the uniform is what the shader is written to expect.
+         */
+        std::unordered_map<std::string, float> floats;
+
         bool operator==(const ShaderManager::Pass &other) const;
     };
 
@@ -51,7 +63,25 @@ public:
         SHADER_UPSCALE_CUT = 4,
         SHADER_UPSCALE_CUT2 = 5,
         SHADER_UPSCALE_CUT3 = 6,
+        SHADER_CUSTOM = 7,
     };
+
+    /**
+     * The keys a SHADER_CUSTOM chain arrives under, in Config::params.
+     *
+     * The JNI seam is already a `Map<String, String>` (see JavaUtils::shaderFromJava),
+     * so a whole shader chain travels as data through the signature that is
+     * already there — no new field, no per-shader C++, and nothing new for R8 to
+     * rename. `PASS_<i>_VERTEX` and `PASS_<i>_FRAGMENT` are complete GLSL source;
+     * the caller is what prepends any `#define`s.
+     */
+    static constexpr const char* PARAM_PASSES = "PASSES";
+    static constexpr const char* PARAM_LINEAR_TEXTURE = "LINEAR_TEXTURE";
+    static constexpr const char* PARAM_PASS_VERTEX = "_VERTEX";
+    static constexpr const char* PARAM_PASS_FRAGMENT = "_FRAGMENT";
+    static constexpr const char* PARAM_PASS_LINEAR = "_LINEAR";
+    static constexpr const char* PARAM_PASS_SCALE = "_SCALE";
+    static constexpr const char* PARAM_PASS_FLOAT = "_FLOAT_";
 
     struct Config {
         Type type;
@@ -89,6 +119,8 @@ private:
     static const std::string cut3UpscalePass2Fragment;
 
 private:
+    static Chain buildCustomChain(const std::unordered_map<std::string, std::string>& params);
+
     static std::string buildDefines(
         std::unordered_map<std::string, std::string> baseParams,
         std::unordered_map<std::string, std::string> customParams

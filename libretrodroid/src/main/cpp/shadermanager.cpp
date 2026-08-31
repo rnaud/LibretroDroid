@@ -15,6 +15,11 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+#include <cstdlib>
+#include <optional>
+
+#include "log.h"
 #include "shadermanager.h"
 
 namespace libretrodroid {
@@ -1530,19 +1535,19 @@ const std::string ShaderManager::cut3UpscalePass2Fragment =
 ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& config) {
     switch (config.type) {
     case Type::SHADER_DEFAULT: {
-        return { { { defaultShaderVertex, defaultShaderFragment, true, 1.0 } }, true };
+        return { { { defaultShaderVertex, defaultShaderFragment, true, 1.0, {} } }, true };
     }
 
     case Type::SHADER_CRT: {
-        return { { { defaultShaderVertex, crtShaderFragment, true, 1.0 } } , true };
+        return { { { defaultShaderVertex, crtShaderFragment, true, 1.0, {} } } , true };
     }
 
     case Type::SHADER_LCD: {
-        return { { {defaultShaderVertex, lcdShaderFragment, true, 1.0 } }, true };
+        return { { { defaultShaderVertex, lcdShaderFragment, true, 1.0, {} } }, true };
     }
 
     case Type::SHADER_SHARP: {
-        return { { { defaultShaderVertex, defaultSharpFragment, true, 1.0 } }, true };
+        return { { { defaultShaderVertex, defaultSharpFragment, true, 1.0, {} } }, true };
     }
 
     case Type::SHADER_UPSCALE_CUT: {
@@ -1576,6 +1581,10 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
         };
     }
 
+    case Type::SHADER_CUSTOM: {
+        return buildCustomChain(config.params);
+    }
+
     case Type::SHADER_UPSCALE_CUT3: {
         std::string defines = buildDefines(cut3UpscaleParams, config.params);
         return {
@@ -1605,6 +1614,84 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
 }
 }
 
+/**
+ * Assembles a chain out of the params map, which is where a RetroArch preset
+ * arrives.
+ *
+ * **A chain must never be empty.** ES3Utils::buildShaderPasses loops
+ * `i < passes.size() - 1` on an unsigned size, so a zero-pass chain underflows
+ * to four billion and takes the process with it. Everything the caller could get
+ * wrong — no passes declared, a pass with no fragment source, a count that does
+ * not match the keys present — therefore falls back to the plain chain rather
+ * than trusting the map.
+ */
+ShaderManager::Chain ShaderManager::buildCustomChain(
+    const std::unordered_map<std::string, std::string>& params
+) {
+    auto lookup = [&params](const std::string& key) -> std::optional<std::string> {
+        auto found = params.find(key);
+        if (found == params.end()) return std::nullopt;
+        return found->second;
+    };
+
+    auto isTrue = [](const std::optional<std::string>& value) {
+        return value.has_value() && value.value() == "true";
+    };
+
+    int count = 0;
+    if (auto declared = lookup(PARAM_PASSES)) {
+        count = std::atoi(declared->c_str());
+    }
+
+    std::vector<Pass> passes;
+    for (int i = 0; i < count; ++i) {
+        std::string prefix = "PASS_" + std::to_string(i);
+
+        auto fragment = lookup(prefix + PARAM_PASS_FRAGMENT);
+        auto vertex = lookup(prefix + PARAM_PASS_VERTEX);
+        if (!fragment.has_value() || !vertex.has_value()) {
+            LOGE("Custom shader pass %d is missing its source; falling back.", i);
+            passes.clear();
+            break;
+        }
+
+        float scale = 1.0F;
+        if (auto declared = lookup(prefix + PARAM_PASS_SCALE)) {
+            scale = std::strtof(declared->c_str(), nullptr);
+        }
+        if (!(scale > 0.0F)) scale = 1.0F;
+
+        // The parameter names are the shader's own, so they cannot be looked up
+        // one by one — the map is walked instead, for keys under this pass's
+        // float prefix.
+        std::unordered_map<std::string, float> floats;
+        std::string floatPrefix = prefix + PARAM_PASS_FLOAT;
+        for (const auto& entry : params) {
+            if (entry.first.rfind(floatPrefix, 0) != 0) continue;
+            std::string name = entry.first.substr(floatPrefix.size());
+            if (name.empty()) continue;
+            floats[name] = std::strtof(entry.second.c_str(), nullptr);
+        }
+
+        passes.push_back(
+            Pass {
+                vertex.value(),
+                fragment.value(),
+                isTrue(lookup(prefix + PARAM_PASS_LINEAR)),
+                scale,
+                floats
+            }
+        );
+    }
+
+    if (passes.empty()) {
+        LOGE("Custom shader declared no usable passes; falling back to the default.");
+        return { { { defaultShaderVertex, defaultShaderFragment, true, 1.0, {} } }, true };
+    }
+
+    return { passes, isTrue(lookup(PARAM_LINEAR_TEXTURE)) };
+}
+
 std::string ShaderManager::buildDefines(
     std::unordered_map<std::string, std::string> baseParams,
     std::unordered_map<std::string, std::string> customParams
@@ -1629,6 +1716,7 @@ bool ShaderManager::Chain::operator!=(const ShaderManager::Chain &other) const {
 
 bool ShaderManager::Pass::operator==(const ShaderManager::Pass &other) const {
     return this->linear == other.linear && this->scale == other.scale &&
-           this->vertex == other.vertex && this->fragment == other.fragment;
+           this->vertex == other.vertex && this->fragment == other.fragment &&
+           this->floats == other.floats;
 }
 } //namespace libretrodroid

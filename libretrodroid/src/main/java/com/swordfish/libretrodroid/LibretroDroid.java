@@ -37,6 +37,24 @@ public class LibretroDroid {
     public static final int SHADER_UPSCALE_CUT = 4;
     public static final int SHADER_UPSCALE_CUT2 = 5;
     public static final int SHADER_UPSCALE_CUT3 = 6;
+    public static final int SHADER_CUSTOM = 7;
+
+    /**
+     * The keys a {@link ShaderConfig.Custom} chain travels under.
+     *
+     * The JNI seam is already a {@code Map<String, String>}, so a whole shader
+     * chain — GLSL source included — goes through the signature that is already
+     * there. Nothing new for R8 to rename, which matters: the last two JNI
+     * lookups this library gained both aborted the process in release builds
+     * only.
+     */
+    public static final String SHADER_CUSTOM_PARAM_PASSES = "PASSES";
+    public static final String SHADER_CUSTOM_PARAM_LINEAR_TEXTURE = "LINEAR_TEXTURE";
+    public static final String SHADER_CUSTOM_PARAM_PASS_VERTEX = "_VERTEX";
+    public static final String SHADER_CUSTOM_PARAM_PASS_FRAGMENT = "_FRAGMENT";
+    public static final String SHADER_CUSTOM_PARAM_PASS_LINEAR = "_LINEAR";
+    public static final String SHADER_CUSTOM_PARAM_PASS_SCALE = "_SCALE";
+    public static final String SHADER_CUSTOM_PARAM_PASS_FLOAT = "_FLOAT_";
 
     public static final String SHADER_UPSCALE_CUT_PARAM_USE_DYNAMIC_BLEND = "USE_DYNAMIC_BLEND";
     public static final String SHADER_UPSCALE_CUT_PARAM_BLEND_MIN_CONTRAST_EDGE = "BLEND_MIN_CONTRAST_EDGE";

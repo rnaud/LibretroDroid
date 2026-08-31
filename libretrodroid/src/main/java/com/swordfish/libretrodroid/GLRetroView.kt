@@ -413,6 +413,11 @@ class GLRetroView(
             is ShaderConfig.CRT -> GLRetroShader(LibretroDroid.SHADER_CRT)
             is ShaderConfig.LCD -> GLRetroShader(LibretroDroid.SHADER_LCD)
             is ShaderConfig.Sharp -> GLRetroShader(LibretroDroid.SHADER_SHARP)
+            is ShaderConfig.Custom -> GLRetroShader(
+                LibretroDroid.SHADER_CUSTOM,
+                buildCustomParams(config),
+            )
+
             is ShaderConfig.CUT -> GLRetroShader(
                 LibretroDroid.SHADER_UPSCALE_CUT,
                 buildParams(
@@ -461,6 +466,32 @@ class GLRetroView(
                 )
             )
         }
+    }
+
+    /**
+     * Flattens a custom chain into the string map the JNI seam already carries.
+     *
+     * A map rather than a new JNI field on purpose: `JavaUtils::shaderFromJava`
+     * reads `type` and `params` by name, and every name native code looks up is
+     * a `-keep` rule somebody has to remember. Adding none is how this arrives
+     * without a third release-only JNI abort.
+     */
+    private fun buildCustomParams(config: ShaderConfig.Custom): Map<String, String> {
+        val params = mutableMapOf(
+            LibretroDroid.SHADER_CUSTOM_PARAM_PASSES to config.passes.size.toString(),
+            LibretroDroid.SHADER_CUSTOM_PARAM_LINEAR_TEXTURE to toParam(config.linearTexture),
+        )
+        config.passes.forEachIndexed { index, pass ->
+            val prefix = "PASS_$index"
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_VERTEX] = pass.vertex
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FRAGMENT] = pass.fragment
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_LINEAR] = toParam(pass.linear)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SCALE] = toParam(pass.scale)
+            pass.floats.forEach { (name, value) ->
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FLOAT + name] = toParam(value)
+            }
+        }
+        return params
     }
 
     private fun toParam(param: Float): String {
