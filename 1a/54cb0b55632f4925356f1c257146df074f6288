@@ -1,0 +1,21 @@
+libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.h
+  s_af8652715929d3::t_c12d3ec0aa816d 58-69
+libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp
+  s_af8652715929d3::t_f878abe94b3baa 50-58,63-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "1a54cb0b55632f4925356f1c257146df074f6288",
+  "prompts": {},
+  "sessions": {
+    "s_af8652715929d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8334739f-53ac-4e66-9c90-3854aacc0b0b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
