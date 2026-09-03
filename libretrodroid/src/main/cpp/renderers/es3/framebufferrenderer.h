@@ -55,7 +55,18 @@ private:
 
     bool isDirty = false;
 
-    std::unique_ptr<ES3Utils::Framebuffer> framebuffer = std::make_unique<ES3Utils::Framebuffer>();
+    std::unique_ptr<ES3Utils::Framebuffer> framebuffer = nullptr;
+
+    /**
+     * What the framebuffer above was actually built with.
+     *
+     * Held so that [initializeBuffers] can tell a shader change from a
+     * resolution change: only the second is a reason to hand a hardware-rendered
+     * core a new render target, and doing it for the first is a permanent black
+     * screen. See the comment there.
+     */
+    std::pair<unsigned, unsigned> framebufferSize = { 0, 0 };
+    bool framebufferLinear = false;
 
     ShaderManager::Chain shaders;
     std::unique_ptr<ES3Utils::Framebuffers> framebuffers = std::make_unique<ES3Utils::Framebuffers>();
