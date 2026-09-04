@@ -1,0 +1,24 @@
+libretrodroid/build.gradle
+  s_b27f07e0145c45::t_bdbebfd447e0e5 64-77
+libretrodroid/src/main/cpp/environment.cpp
+  s_b27f07e0145c45::t_41749849bf6f26 39-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "aa9e52a9d3ba6c6d00c6ef0555a5d6e51cff2023",
+  "prompts": {},
+  "sessions": {
+    "s_b27f07e0145c45": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b9732d9-95a6-4389-bb02-1f484781246f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>",
+      "custom_attributes": {
+        "runtime": "local"
+      }
+    }
+  }
+}
