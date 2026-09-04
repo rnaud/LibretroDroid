@@ -36,6 +36,22 @@ void Environment::initialize(
     const std::string &requiredSavesDirectory,
     retro_hw_get_current_framebuffer_t required_callback_get_current_framebuffer
 ) {
+    // The core options belong to the core that is about to load, and this is a
+    // singleton that outlives it: a second game in the same process found the
+    // first core's variables still in the map, because nothing ever removed
+    // them. `getVariables` then answered with the union of every core the
+    // process had ever run, which a frontend has no way to separate -- there is
+    // nothing in a `retro_variable` that says who declared it.
+    //
+    // Cleared here rather than in `deinitialize` on purpose. This runs before
+    // `retro_set_environment`, so it is the last moment the map is guaranteed
+    // empty for the incoming core, and it also covers a session that ended
+    // without a `destroy` -- an activity killed by the platform never reaches
+    // one. The frontend's own pre-load values are pushed after this returns,
+    // so they survive.
+    variables.clear();
+    dirtyVariables = false;
+
     callback_get_current_framebuffer = required_callback_get_current_framebuffer;
     systemDirectory = requiredSystemDirectory;
     savesDirectory = requiredSavesDirectory;

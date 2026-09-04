@@ -61,6 +61,20 @@ publishing {
         release(MavenPublication) {
             groupId = 'com.swordfish'
             artifactId = 'libretrodroid'
+            // JitPack sets the version from the tag it is building. A local
+            // publish has no tag, so it needs one given to it -- without this
+            // the coordinates come out as `unspecified` and no consumer can ask
+            // for them, which is what made a native change unverifiable
+            // anywhere but on JitPack:
+            //
+            //   ./gradlew :libretrodroid:publishReleasePublicationToMavenLocal \
+            //       -PpublishVersion=0.14.0-alexandria.7
+            //
+            // The coordinates are left exactly as JitPack has always built
+            // them -- it does its own group rewriting on top, and six working
+            // tags are the evidence that guessing at it is not worth it. A
+            // local consumer asks for `com.swordfish:libretrodroid` instead.
+            version = project.findProperty('publishVersion') ?: 'dev'
             afterEvaluate {
                 from components.release
             }
