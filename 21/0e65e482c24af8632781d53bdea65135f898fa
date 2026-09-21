@@ -1,0 +1,21 @@
+libretrodroid/src/main/cpp/video.cpp
+  s_3fb0d1aedf5f31::t_6d56b84b9e3553 287-327,551-569,774
+libretrodroid/src/main/cpp/video.h
+  s_3fb0d1aedf5f31::t_e336cacac03b64 178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "210e65e482c24af8632781d53bdea65135f898fa",
+  "prompts": {},
+  "sessions": {
+    "s_3fb0d1aedf5f31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c062-19a0-74b1-b2c1-ab88f30cd52a",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
