@@ -175,6 +175,7 @@ private:
     };
     std::optional<ShaderManager::Config> loadedShaderType = std::nullopt;
 
+    int openglESVersion = 2;
     bool isDirty = false;
     bool skipDuplicateFrames = false;
 

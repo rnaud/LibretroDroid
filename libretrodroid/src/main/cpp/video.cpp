@@ -284,6 +284,47 @@ void Video::renderFrame() {
     // both of its passes or an animated effect tears between them.
     frameCount++;
 
+    // A hardware core can leave state that clips the frontend quad, or a VBO
+    // that interprets our client-array pointers as offsets. Keep its VAO intact
+    // and restore these bindings/flags after presentation: cores cache them.
+    const GLenum capabilities[] = {GL_SCISSOR_TEST, GL_BLEND, GL_CULL_FACE,
+                                   GL_STENCIL_TEST, GL_RASTERIZER_DISCARD};
+    GLboolean enabled[5] = {};
+    const int capabilityCount = openglESVersion >= 3 ? 5 : 4;
+    for (int i = 0; i < capabilityCount; ++i) {
+        enabled[i] = glIsEnabled(capabilities[i]);
+        glDisable(capabilities[i]);
+    }
+    GLboolean colorMask[4];
+    glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    GLint vertexArray = 0, arrayBuffer = 0, elementBuffer = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &arrayBuffer);
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementBuffer);
+    if (openglESVersion >= 3) {
+        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vertexArray);
+        glBindVertexArray(0);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    const GLboolean depthEnabled = glIsEnabled(GL_DEPTH_TEST);
+    GLint program, activeTexture, drawFramebuffer, readFramebuffer, viewport[4];
+    GLfloat clearColor[4];
+    glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTexture);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &drawFramebuffer);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
+    readFramebuffer = drawFramebuffer;
+    if (openglESVersion >= 3) glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFramebuffer);
+    GLint textureCount = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &textureCount);
+    std::vector<GLint> textureBindings(textureCount);
+    for (int i = 0; i < textureCount; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureBindings[i]);
+    }
+    glActiveTexture(GL_TEXTURE0);
     glDisable(GL_DEPTH_TEST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -507,6 +548,25 @@ void Video::renderFrame() {
 
         glUseProgram(0);
     }
+
+    glUseProgram(program);
+    for (int i = 0; i < textureCount; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_2D, textureBindings[i]);
+    }
+    glActiveTexture(activeTexture);
+    glBindFramebuffer(GL_FRAMEBUFFER, drawFramebuffer);
+    if (openglESVersion >= 3) glBindFramebuffer(GL_READ_FRAMEBUFFER, readFramebuffer);
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+    if (depthEnabled) glEnable(GL_DEPTH_TEST);
+    if (openglESVersion >= 3) glBindVertexArray(vertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, arrayBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
+    glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+    for (int i = 0; i < capabilityCount; ++i) {
+        if (enabled[i]) glEnable(capabilities[i]);
+    }
 }
 
 /**
@@ -711,6 +771,7 @@ Video::Video(
     unsigned int viewportAlignment
 ) :
     requestedShaderConfig(std::move(shaderConfig)),
+    openglESVersion(renderingOptions.openglESVersion),
     skipDuplicateFrames(skipDuplicateFrames),
     immersiveModeEnabled(immersiveModeEnabled),
     immersiveMode(immersiveModeConfig),
