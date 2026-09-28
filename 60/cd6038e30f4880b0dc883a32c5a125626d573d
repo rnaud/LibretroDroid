@@ -1,0 +1,43 @@
+libretrodroid/src/main/cpp/renderers/es2/imagerendereres2.cpp
+  s_d4167757533f66::t_510aedb4eed476 19,42-50,131
+libretrodroid/src/main/cpp/renderers/es2/imagerendereres2.h
+  s_d4167757533f66::t_87c36acf220e07 58
+libretrodroid/src/main/cpp/renderers/es3/es3utils.cpp
+  s_d4167757533f66::t_7170a590b4be83 23-24,33,66-67,88-102,128-151,209
+libretrodroid/src/main/cpp/renderers/es3/es3utils.h
+  s_d4167757533f66::t_5a6d072d094e3d 77,84-97
+libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp
+  s_d4167757533f66::t_d53a0614de88ca 97,103,119-126
+libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.h
+  s_d4167757533f66::t_96f51829f307bb 70
+libretrodroid/src/main/cpp/renderers/es3/imagerendereres3.cpp
+  s_d4167757533f66::t_55e052a9b03252 64-65
+libretrodroid/src/main/cpp/shadermanager.cpp
+  s_d4167757533f66::t_0f5bf9f64e85b0 1647-1651,1653-1664,1724,1737,1761-1768,1798,1804,1812
+libretrodroid/src/main/cpp/shadermanager.h
+  s_d4167757533f66::t_f6f2fb2c143cb2 45-59,65-70,118,126-127,182-184
+libretrodroid/src/main/cpp/video.cpp
+  s_d4167757533f66::t_30eed58e698c4d 596,645,702-707,716
+libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
+  s_d4167757533f66::t_69b0cc5c82cc32 483,501,512-514,526-533
+libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
+  s_d4167757533f66::t_c17d64ddd19fd3 67-69
+libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
+  s_d4167757533f66::t_b93577b88325c6 51-52,86,88-89,92-101,120-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60cd6038e30f4880b0dc883a32c5a125626d573d",
+  "prompts": {},
+  "sessions": {
+    "s_d4167757533f66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "48273525-2b3d-4f06-b755-2ed24b8780e6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arnaud Ferreri <rnaud@users.noreply.github.com>"
+    }
+  }
+}
