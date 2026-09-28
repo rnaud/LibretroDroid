@@ -94,12 +94,13 @@ void FramebufferRenderer::initializeBuffers() {
             width,
             height,
             shaders.linearTexture,
-            false,
+            ES3Utils::wrapToGL(shaders.wrapTexture),
             depth,
             stencil
         );
         framebufferSize = size;
         framebufferLinear = shaders.linearTexture;
+        framebufferWrap = shaders.wrapTexture;
         return;
     }
 
@@ -113,6 +114,14 @@ void FramebufferRenderer::initializeBuffers() {
         glBindTexture(GL_TEXTURE_2D, framebuffer->texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    if (framebufferWrap != shaders.wrapTexture) {
+        framebufferWrap = shaders.wrapTexture;
+        GLint wrap = ES3Utils::wrapToGL(framebufferWrap);
+        glBindTexture(GL_TEXTURE_2D, framebuffer->texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 }

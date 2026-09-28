@@ -67,6 +67,7 @@ private:
      */
     std::pair<unsigned, unsigned> framebufferSize = { 0, 0 };
     bool framebufferLinear = false;
+    ShaderManager::WrapMode framebufferWrap = ShaderManager::WrapMode::CLAMP_TO_BORDER;
 
     ShaderManager::Chain shaders;
     std::unique_ptr<ES3Utils::Framebuffers> framebuffers = std::make_unique<ES3Utils::Framebuffers>();

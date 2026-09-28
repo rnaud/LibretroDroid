@@ -16,6 +16,7 @@
  */
 
 #include "imagerendereres2.h"
+#include "../es3/es3utils.h"
 #include "../../libretro-common/include/libretro.h"
 
 namespace libretrodroid {
@@ -38,8 +39,15 @@ void ImageRendererES2::onNewFrame(const void *data, unsigned width, unsigned hei
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linear ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear ? GL_LINEAR : GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // A core's frame is rarely a power of two, and ES2 cannot repeat one:
+    // quietly edge, since this runs every frame.
+    bool repeats = wrap == ShaderManager::WrapMode::REPEAT ||
+        wrap == ShaderManager::WrapMode::MIRRORED_REPEAT;
+    GLint wrapMode = repeats && !ES3Utils::es2CanRepeat(width, height)
+        ? GL_CLAMP_TO_EDGE
+        : ES3Utils::wrapToGL(wrap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
 
     if (lastFrameSize.first != width || lastFrameSize.second != height) {
         glTexImage2D(GL_TEXTURE_2D, 0, glInternalFormat, width, height, 0, glFormat, glType, nullptr);
@@ -120,6 +128,7 @@ bool ImageRendererES2::rendersInVideoCallback() {
 
 void ImageRendererES2::setShaders(ShaderManager::Chain shaders) {
     this->linear = shaders.linearTexture;
+    this->wrap = shaders.wrapTexture;
 }
 
 // ES2 Renderer doesn't currently support multiple passes.

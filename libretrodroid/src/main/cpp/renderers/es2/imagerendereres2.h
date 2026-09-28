@@ -55,6 +55,7 @@ private:
     unsigned int glFormat = 0;
 
     bool linear = false;
+    ShaderManager::WrapMode wrap = ShaderManager::WrapMode::CLAMP_TO_BORDER;
 
     unsigned int currentTexture = 0;
 };

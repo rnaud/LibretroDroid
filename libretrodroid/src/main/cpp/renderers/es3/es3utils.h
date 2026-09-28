@@ -74,13 +74,27 @@ public:
         unsigned int width,
         unsigned int height,
         bool linear,
-        bool repeat,
+        GLint wrap,
         bool includeDepth,
         bool includeStencil,
         Format format = Format::RGBA8
     );
 
     static void deleteFramebuffer(std::unique_ptr<Framebuffer> data);
+
+    /**
+     * The GL wrap enum for a preset's `wrap_mode`.
+     *
+     * Border is edge, as in RetroArch's own GLES build. Repeat on a texture that
+     * is not a power of two is only legal from ES 3.0 (or with
+     * `OES_texture_npot`), and an illegal one is not an error but an incomplete
+     * texture, which samples as black — so [canRepeat] false turns both repeats
+     * into edge, and says so.
+     */
+    static GLint wrapToGL(ShaderManager::WrapMode mode, bool canRepeat = true);
+
+    /** Whether an ES2 context may repeat a texture of this size. */
+    static bool es2CanRepeat(unsigned int width, unsigned int height);
 };
 
 }

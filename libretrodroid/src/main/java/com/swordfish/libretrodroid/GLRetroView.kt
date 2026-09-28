@@ -480,6 +480,7 @@ class GLRetroView(
         val params = mutableMapOf(
             LibretroDroid.SHADER_CUSTOM_PARAM_PASSES to config.passes.size.toString(),
             LibretroDroid.SHADER_CUSTOM_PARAM_LINEAR_TEXTURE to toParam(config.linearTexture),
+            LibretroDroid.SHADER_CUSTOM_PARAM_WRAP_TEXTURE to toParam(config.wrapTexture),
             LibretroDroid.SHADER_CUSTOM_PARAM_HISTORY to config.historyFrames.toString(),
         )
         config.passes.forEachIndexed { index, pass ->
@@ -497,6 +498,7 @@ class GLRetroView(
                 toParam(pass.floatFramebuffer)
             params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_SRGB_FB] =
                 toParam(pass.srgbFramebuffer)
+            params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_WRAP] = toParam(pass.wrapMode)
             pass.floats.forEach { (name, value) ->
                 params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_PASS_FLOAT + name] = toParam(value)
             }
@@ -507,7 +509,9 @@ class GLRetroView(
                 val prefix = "LUT_${lut.name}"
                 params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_PATH] = lut.path
                 params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_LINEAR] = toParam(lut.linear)
-                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_REPEAT] = toParam(lut.repeat)
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_REPEAT] =
+                    toParam(lut.wrapMode == ShaderConfig.Custom.WrapMode.REPEAT)
+                params[prefix + LibretroDroid.SHADER_CUSTOM_PARAM_LUT_WRAP] = toParam(lut.wrapMode)
             }
         }
         return params
@@ -517,6 +521,14 @@ class GLRetroView(
         ShaderConfig.Custom.ScaleType.SOURCE -> "source"
         ShaderConfig.Custom.ScaleType.VIEWPORT -> "viewport"
         ShaderConfig.Custom.ScaleType.ABSOLUTE -> "absolute"
+    }
+
+    /** RetroArch's own spelling, which is what the native side parses. */
+    private fun toParam(param: ShaderConfig.Custom.WrapMode): String = when (param) {
+        ShaderConfig.Custom.WrapMode.CLAMP_TO_BORDER -> "clamp_to_border"
+        ShaderConfig.Custom.WrapMode.CLAMP_TO_EDGE -> "clamp_to_edge"
+        ShaderConfig.Custom.WrapMode.REPEAT -> "repeat"
+        ShaderConfig.Custom.WrapMode.MIRRORED_REPEAT -> "mirrored_repeat"
     }
 
     private fun toParam(param: Float): String {

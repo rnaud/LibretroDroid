@@ -48,6 +48,8 @@ sealed interface ShaderConfig {
     data class Custom(
         val passes: List<Pass>,
         val linearTexture: Boolean = false,
+        /** How the source frame is wrapped — RetroArch's `wrap_mode0`. */
+        val wrapTexture: WrapMode = WrapMode.CLAMP_TO_BORDER,
         /** Lookup textures, bound by the name the preset gave them. */
         val luts: List<Lut> = emptyList(),
         /**
@@ -81,8 +83,21 @@ sealed interface ShaderConfig {
             val name: String,
             val path: String,
             val linear: Boolean = true,
+            /** Kept for callers written before [wrapMode]; true means [WrapMode.REPEAT]. */
             val repeat: Boolean = false,
+            /** RetroArch's `NAME_wrap_mode`. */
+            val wrapMode: WrapMode = if (repeat) WrapMode.REPEAT else WrapMode.CLAMP_TO_BORDER,
         )
+
+        /**
+         * How a texture is sampled outside [0, 1] — RetroArch's `wrap_mode`.
+         *
+         * [CLAMP_TO_BORDER] is RetroArch's default and is drawn as clamp-to-edge,
+         * as RetroArch's own GLES build does: GLES has no border colour before
+         * 3.2. On an ES2 context a texture that is not a power of two cannot
+         * repeat either, and is clamped to its edge instead.
+         */
+        enum class WrapMode { CLAMP_TO_BORDER, CLAMP_TO_EDGE, REPEAT, MIRRORED_REPEAT }
 
         /**
          * How a pass's framebuffer is sized, per axis — `scale_typeN`.
@@ -102,6 +117,12 @@ sealed interface ShaderConfig {
             val scaleY: Float = 1.0f,
             val scaleTypeX: ScaleType = ScaleType.SOURCE,
             val scaleTypeY: ScaleType = ScaleType.SOURCE,
+            /**
+             * How *this* pass's output is wrapped when a later pass samples it —
+             * RetroArch's `wrap_mode` of the following pass, the same off-by-one
+             * as [linear].
+             */
+            val wrapMode: WrapMode = WrapMode.CLAMP_TO_BORDER,
             /**
              * Ask for more than 8 bits a channel — `float_framebuffer` and
              * `srgb_framebuffer`. A preset denied these does not fail, it bands.

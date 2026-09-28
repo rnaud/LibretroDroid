@@ -64,6 +64,9 @@ public class LibretroDroid {
     public static final String SHADER_CUSTOM_PARAM_LUT_PATH = "_PATH";
     public static final String SHADER_CUSTOM_PARAM_LUT_LINEAR = "_LINEAR";
     public static final String SHADER_CUSTOM_PARAM_LUT_REPEAT = "_REPEAT";
+    public static final String SHADER_CUSTOM_PARAM_LUT_WRAP = "_WRAP";
+    public static final String SHADER_CUSTOM_PARAM_WRAP_TEXTURE = "WRAP_TEXTURE";
+    public static final String SHADER_CUSTOM_PARAM_PASS_WRAP = "_WRAP";
     public static final String SHADER_CUSTOM_PARAM_HISTORY = "HISTORY";
 
     public static final String SHADER_UPSCALE_CUT_PARAM_USE_DYNAMIC_BLEND = "USE_DYNAMIC_BLEND";

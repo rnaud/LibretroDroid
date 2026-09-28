@@ -1644,8 +1644,24 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
         return found->second;
     };
 
+    // The Kotlin side has always sent booleans as "1" and "0" — its `toParam`
+    // is shared with the built-in shaders, whose values become `#define`s — and
+    // this read only "true". So every flag a custom chain carried arrived as
+    // false: `filter_linearN`, `float_framebufferN`, `srgb_framebufferN`, a
+    // LUT's `_linear` and its `wrap_mode`. Both spellings are accepted.
     auto isTrue = [](const std::optional<std::string>& value) {
-        return value.has_value() && value.value() == "true";
+        return value.has_value() && (value.value() == "true" || value.value() == "1");
+    };
+
+    // RetroArch's names, and its answer to one it does not know: the default.
+    auto wrapOf = [](const std::optional<std::string>& value, WrapMode fallback) {
+        if (!value.has_value()) return fallback;
+        if (*value == "clamp_to_border") return WrapMode::CLAMP_TO_BORDER;
+        if (*value == "clamp_to_edge") return WrapMode::CLAMP_TO_EDGE;
+        if (*value == "repeat") return WrapMode::REPEAT;
+        if (*value == "mirrored_repeat") return WrapMode::MIRRORED_REPEAT;
+        LOGE("Unknown wrap mode '%s'; using the default.", value->c_str());
+        return WrapMode::CLAMP_TO_BORDER;
     };
 
     int count = 0;
@@ -1705,6 +1721,7 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
         pass.scaleTypeY = scaleTypeOf(PARAM_PASS_SCALE_TYPE_Y);
         pass.floatFramebuffer = isTrue(lookup(prefix + PARAM_PASS_FLOAT_FB));
         pass.srgbFramebuffer = isTrue(lookup(prefix + PARAM_PASS_SRGB_FB));
+        pass.wrap = wrapOf(lookup(prefix + PARAM_PASS_WRAP), WrapMode::CLAMP_TO_BORDER);
         pass.floats = floats;
         passes.push_back(pass);
     }
@@ -1717,6 +1734,7 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
     Chain chain;
     chain.passes = passes;
     chain.linearTexture = isTrue(lookup(PARAM_LINEAR_TEXTURE));
+    chain.wrapTexture = wrapOf(lookup(PARAM_WRAP_TEXTURE), WrapMode::CLAMP_TO_BORDER);
 
     // Lookup textures, named by the preset. A name with no path is dropped
     // rather than bound as nothing: an unbound sampler reads black, and a LUT
@@ -1740,8 +1758,14 @@ ShaderManager::Chain ShaderManager::buildCustomChain(
             // Linear by default, which is what RetroArch does when the preset
             // says nothing.
             auto linear = lookup("LUT_" + name + PARAM_LUT_LINEAR);
-            lut.linear = !linear.has_value() || *linear == "true";
-            lut.repeat = isTrue(lookup("LUT_" + name + PARAM_LUT_REPEAT));
+            lut.linear = !linear.has_value() || isTrue(linear);
+            // `_WRAP` names the mode; `_REPEAT` is the flag an older caller sent.
+            lut.wrap = wrapOf(
+                lookup("LUT_" + name + PARAM_LUT_WRAP),
+                isTrue(lookup("LUT_" + name + PARAM_LUT_REPEAT))
+                    ? WrapMode::REPEAT
+                    : WrapMode::CLAMP_TO_BORDER
+            );
             chain.luts.push_back(lut);
         }
     }
@@ -1771,12 +1795,13 @@ std::string ShaderManager::buildDefines(
 
 bool ShaderManager::Chain::operator==(const ShaderManager::Chain &other) const {
     return this->passes == other.passes && this->linearTexture == other.linearTexture &&
+           this->wrapTexture == other.wrapTexture &&
            this->luts == other.luts && this->historyFrames == other.historyFrames;
 }
 
 bool ShaderManager::Lut::operator==(const ShaderManager::Lut &other) const {
     return this->name == other.name && this->path == other.path &&
-           this->linear == other.linear && this->repeat == other.repeat;
+           this->linear == other.linear && this->wrap == other.wrap;
 }
 
 bool ShaderManager::Chain::operator!=(const ShaderManager::Chain &other) const {
@@ -1784,7 +1809,7 @@ bool ShaderManager::Chain::operator!=(const ShaderManager::Chain &other) const {
 }
 
 bool ShaderManager::Pass::operator==(const ShaderManager::Pass &other) const {
-    return this->linear == other.linear &&
+    return this->linear == other.linear && this->wrap == other.wrap &&
            this->scaleX == other.scaleX && this->scaleY == other.scaleY &&
            this->scaleTypeX == other.scaleTypeX && this->scaleTypeY == other.scaleTypeY &&
            this->floatFramebuffer == other.floatFramebuffer &&

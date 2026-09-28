@@ -61,8 +61,8 @@ void ImageRendererES3::initializeTextures(unsigned int width, unsigned int heigh
     glTexImage2D(GL_TEXTURE_2D, 0, glInternalFormat, width, height, 0, glFormat, glType, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, shaders.linearTexture ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, shaders.linearTexture ? GL_LINEAR : GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, ES3Utils::wrapToGL(shaders.wrapTexture));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, ES3Utils::wrapToGL(shaders.wrapTexture));
 
     if (swapRedAndBlueChannels) {
         applyGLSwizzle(GL_BLUE, GL_GREEN, GL_RED, GL_ALPHA);

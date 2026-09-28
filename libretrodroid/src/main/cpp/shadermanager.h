@@ -42,10 +42,31 @@ public:
         ABSOLUTE,
     };
 
+    /**
+     * How a texture is sampled outside [0, 1] — RetroArch's `wrap_mode`.
+     *
+     * `CLAMP_TO_BORDER` is RetroArch's default and is drawn as clamp-to-edge,
+     * which is what RetroArch's own GLES build does: GLES has no border before
+     * 3.2 (or `EXT_texture_border_color`), and a shader written against RetroArch
+     * on Android was written against the edge.
+     */
+    enum class WrapMode {
+        CLAMP_TO_BORDER,
+        CLAMP_TO_EDGE,
+        REPEAT,
+        MIRRORED_REPEAT,
+    };
+
     struct Pass {
         std::string vertex;
         std::string fragment;
         bool linear = false;
+
+        /**
+         * How *this* pass's output is wrapped when a later pass samples it —
+         * `wrap_modeN` of the following pass, the same off-by-one as [linear].
+         */
+        WrapMode wrap = WrapMode::CLAMP_TO_BORDER;
 
         float scaleX = 1.0F;
         float scaleY = 1.0F;
@@ -94,7 +115,7 @@ public:
         std::string name;
         std::string path;
         bool linear = true;
-        bool repeat = false;
+        WrapMode wrap = WrapMode::CLAMP_TO_BORDER;
 
         bool operator==(const ShaderManager::Lut &other) const;
     };
@@ -102,6 +123,8 @@ public:
     struct Chain {
         std::vector<Pass> passes;
         bool linearTexture = false;
+        /** How the source frame is wrapped — RetroArch's `wrap_mode0`. */
+        WrapMode wrapTexture = WrapMode::CLAMP_TO_BORDER;
 
         /** The chain's lookup textures, bound by name. */
         std::vector<Lut> luts;
@@ -156,6 +179,9 @@ public:
     static constexpr const char* PARAM_LUT_PATH = "_PATH";
     static constexpr const char* PARAM_LUT_LINEAR = "_LINEAR";
     static constexpr const char* PARAM_LUT_REPEAT = "_REPEAT";
+    static constexpr const char* PARAM_WRAP_TEXTURE = "WRAP_TEXTURE";
+    static constexpr const char* PARAM_PASS_WRAP = "_WRAP";
+    static constexpr const char* PARAM_LUT_WRAP = "_WRAP";
     static constexpr const char* PARAM_HISTORY = "HISTORY";
 
     /**

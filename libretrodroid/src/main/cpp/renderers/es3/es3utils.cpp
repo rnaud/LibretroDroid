@@ -20,6 +20,8 @@
 
 #include "es3utils.h"
 
+#include <cstring>
+
 #include "../../log.h"
 
 namespace libretrodroid {
@@ -28,7 +30,7 @@ std::unique_ptr<ES3Utils::Framebuffer> ES3Utils::createFramebuffer(
     unsigned int width,
     unsigned int height,
     bool linear,
-    bool repeat,
+    GLint wrap,
     bool includeDepth,
     bool includeStencil,
     Format format
@@ -61,8 +63,8 @@ std::unique_ptr<ES3Utils::Framebuffer> ES3Utils::createFramebuffer(
         break;
     }
     glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_MIRRORED_REPEAT : GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_MIRRORED_REPEAT : GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linear ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear ? GL_LINEAR : GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, result->texture, 0);
@@ -80,6 +82,21 @@ std::unique_ptr<ES3Utils::Framebuffer> ES3Utils::createFramebuffer(
             includeStencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT,
             GL_RENDERBUFFER,
             result->depth.value()
+        );
+    }
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE &&
+        format != Format::RGBA8) {
+        // A driver without `EXT_color_buffer_half_float` cannot render into a
+        // half-float texture. That is a band, not a failure, so it falls back
+        // rather than throwing on the GL thread — which kills the process.
+        LOGE("A %s framebuffer is not renderable here; falling back to RGBA8.",
+             format == Format::HALF_FLOAT ? "half-float" : "sRGB");
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        deleteFramebuffer(std::move(result));
+        return createFramebuffer(
+            width, height, linear, wrap, includeDepth, includeStencil, Format::RGBA8
         );
     }
 
@@ -106,6 +123,30 @@ void ES3Utils::deleteFramebuffer(std::unique_ptr<ES3Utils::Framebuffer> data) {
     if (data->depth.has_value()) {
         glDeleteRenderbuffers(1, &data->depth.value());
     }
+}
+
+GLint ES3Utils::wrapToGL(ShaderManager::WrapMode mode, bool canRepeat) {
+    switch (mode) {
+    case ShaderManager::WrapMode::REPEAT:
+        if (canRepeat) return GL_REPEAT;
+        LOGE("Cannot repeat a non-power-of-two texture on ES2; clamping to edge.");
+        return GL_CLAMP_TO_EDGE;
+    case ShaderManager::WrapMode::MIRRORED_REPEAT:
+        if (canRepeat) return GL_MIRRORED_REPEAT;
+        LOGE("Cannot repeat a non-power-of-two texture on ES2; clamping to edge.");
+        return GL_CLAMP_TO_EDGE;
+    case ShaderManager::WrapMode::CLAMP_TO_BORDER:
+    case ShaderManager::WrapMode::CLAMP_TO_EDGE:
+    default:
+        return GL_CLAMP_TO_EDGE;
+    }
+}
+
+bool ES3Utils::es2CanRepeat(unsigned int width, unsigned int height) {
+    auto powerOfTwo = [](unsigned int value) { return value != 0 && (value & (value - 1)) == 0; };
+    if (powerOfTwo(width) && powerOfTwo(height)) return true;
+    const char* extensions = (const char*) glGetString(GL_EXTENSIONS);
+    return extensions != nullptr && std::strstr(extensions, "GL_OES_texture_npot") != nullptr;
 }
 
 std::unique_ptr<ES3Utils::Framebuffers> ES3Utils::buildShaderPasses(
@@ -165,7 +206,7 @@ std::unique_ptr<ES3Utils::Framebuffers> ES3Utils::buildShaderPasses(
             passWidth,
             passHeight,
             pass.linear,
-            false,
+            wrapToGL(pass.wrap),
             false,
             false,
             format

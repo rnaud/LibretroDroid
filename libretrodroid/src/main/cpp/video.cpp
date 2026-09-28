@@ -593,7 +593,7 @@ void Video::updateHistory() {
     history.erase(history.begin());
     if (slot == nullptr || slot->width != width || slot->height != height) {
         ES3Utils::deleteFramebuffer(std::move(slot));
-        slot = ES3Utils::createFramebuffer(width, height, true, false, false, false);
+        slot = ES3Utils::createFramebuffer(width, height, true, GL_CLAMP_TO_EDGE, false, false);
     }
 
     if (historyReadFramebuffer == 0) {
@@ -642,7 +642,7 @@ void Video::releaseHistory(int wanted) {
         unsigned int height = std::max(1, (int) getTextureHeight());
         history.insert(
             history.begin(),
-            ES3Utils::createFramebuffer(width, height, true, false, false, false)
+            ES3Utils::createFramebuffer(width, height, true, GL_CLAMP_TO_EDGE, false, false)
         );
     }
 }
@@ -699,7 +699,12 @@ void Video::loadLuts(const ShaderManager::Chain& chain) {
             GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
             pixels.data()
         );
-        GLint wrap = lut.repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+        // Set with the texture bound, and before anything samples it. ES2 may
+        // not repeat a non-power-of-two texture; ES3 may.
+        GLint wrap = ES3Utils::wrapToGL(
+            lut.wrap,
+            openglESVersion >= 3 || ES3Utils::es2CanRepeat(width, height)
+        );
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
         GLint filter = lut.linear ? GL_LINEAR : GL_NEAREST;
@@ -708,7 +713,7 @@ void Video::loadLuts(const ShaderManager::Chain& chain) {
         glBindTexture(GL_TEXTURE_2D, 0);
 
         lutTextures.push_back(texture);
-        LOGI("Loaded LUT %s, %dx%d", lut.name.c_str(), width, height);
+        LOGI("Loaded LUT %s, %dx%d, wrap 0x%x", lut.name.c_str(), width, height, wrap);
     }
 }
 
