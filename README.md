@@ -39,3 +39,19 @@ dependencies {
     ...
 }
 ```
+
+
+### Optional Android ARM64 Vulkan driver
+
+`GLRetroViewData.vulkanDriverLibrary` accepts an absolute path to a custom
+AdrenoTools driver in the application's private storage. Leaving it null uses
+the system driver. The hook directory comes from `applicationInfo.nativeLibraryDir`;
+Android packaging must keep `jniLibs.useLegacyPackaging = true`. Driver selection
+belongs to the player session and is cleared during teardown. Applications must
+validate driver compatibility and downloads before setting the path.
+
+AdrenoTools is pinned as a recursive submodule (BSD-2-Clause); its shared hooks
+are packaged only for ARM64. RPCS3's static constructors install SIGSEGV, SIGILL
+and SIGPIPE handlers, so their previous values are captured before dlopen and
+restored before unloading RPCS3. Stop and join the Android GL view before
+unloading cores with thread-local destructors, including RPCS3 and Vita3K.

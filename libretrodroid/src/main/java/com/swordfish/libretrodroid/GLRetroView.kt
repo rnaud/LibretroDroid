@@ -110,6 +110,7 @@ class GLRetroView(
             data.immersiveMode,
             getDeviceLanguage()
         )
+        LibretroDroid.configureVulkanDriver(data.vulkanDriverLibrary ?: "", context.applicationInfo.nativeLibraryDir)
         LibretroDroid.setRumbleEnabled(data.rumbleEventsEnabled)
         LibretroDroid.setViewportAlignment(data.viewportAlignment.value)
     }

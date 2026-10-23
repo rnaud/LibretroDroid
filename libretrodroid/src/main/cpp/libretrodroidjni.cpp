@@ -40,6 +40,7 @@
 #include "utils/javautils.h"
 #include "errorcodes.h"
 #include "environment.h"
+#include "vulkanbridge.h"
 #include "renderers/es3/framebufferrenderer.h"
 #include "renderers/es2/imagerendereres2.h"
 #include "renderers/es3/imagerendereres3.h"
@@ -54,6 +55,13 @@ extern "C" {
 }
 
 extern "C" {
+
+JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_configureVulkanDriver(
+    JNIEnv* env, jclass, jstring library, jstring hooks) {
+    JniString path(env, library);
+    JniString hookPath(env, hooks);
+    VulkanBridge::get().configureDriver(path.stdString(), hookPath.stdString());
+}
 
 JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_availableDisks(
     JNIEnv* env,

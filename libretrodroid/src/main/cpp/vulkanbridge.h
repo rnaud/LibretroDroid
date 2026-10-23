@@ -2,6 +2,7 @@
 #define VK_NO_PROTOTYPES
 #include "libretro/libretro-common/include/libretro_vulkan.h"
 #include <mutex>
+#include <string>
 #include <vector>
 
 // Experimental synchronous Vulkan readback into the existing GLES presenter.
@@ -11,6 +12,7 @@ public:
     static VulkanBridge& get() { static VulkanBridge bridge; return bridge; }
     bool requested = false;
     bool negotiate(const retro_hw_render_context_negotiation_interface_vulkan* info);
+    void configureDriver(const std::string& library, const std::string& hooks) { driverLibrary = library; hookDirectory = hooks; }
     void initialize();
     void destroy();
     const retro_hw_render_interface_vulkan* interface() const { return api.device ? &api : nullptr; }
@@ -35,6 +37,8 @@ private:
     size_t capacity = 0;
     std::vector<uint32_t> pixels;
     void* loader = nullptr;
+    std::string driverLibrary;
+    std::string hookDirectory;
     void allocate(size_t bytes);
     void freeBuffer();
 #define VK_FN(name) PFN_##name name = nullptr;

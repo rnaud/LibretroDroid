@@ -36,6 +36,9 @@ void* get_symbol(void* handle, const char* symbol) {
 }
 
 void Core::open(const std::string& soCorePath) {
+    // RPCS3 installs handlers in static constructors, before retro_init.
+    const bool capturedSignals = sigaction(SIGSEGV, nullptr, &hostSegv) == 0 &&
+        sigaction(SIGILL, nullptr, &hostIll) == 0 && sigaction(SIGPIPE, nullptr, &hostPipe) == 0;
     libHandle = dlopen(soCorePath.c_str(), RTLD_LOCAL | RTLD_LAZY);
     if (!libHandle) {
         LOGE("Cannot dlopen library, closing");
@@ -47,6 +50,9 @@ void Core::open(const std::string& soCorePath) {
     retro_deinit = (void (*)()) get_symbol(libHandle, "retro_deinit");
     retro_api_version = (unsigned (*)()) get_symbol(libHandle, "retro_api_version");
     retro_get_system_info = (void (*)(struct retro_system_info*)) get_symbol(libHandle, "retro_get_system_info");
+    retro_system_info info{};
+    retro_get_system_info(&info);
+    restoreProcessSignals = capturedSignals && info.library_name && std::string(info.library_name) == "RPCS3";
     retro_get_system_av_info = (void (*)(struct retro_system_av_info*)) get_symbol(libHandle, "retro_get_system_av_info");
     retro_set_controller_port_device = (void (*)(unsigned, unsigned)) get_symbol(libHandle, "retro_set_controller_port_device");
     retro_reset = (void (*)()) get_symbol(libHandle, "retro_reset");
@@ -68,6 +74,12 @@ void Core::open(const std::string& soCorePath) {
 
 void Core::close() {
     if (libHandle) {
+        if (restoreProcessSignals) {
+            sigaction(SIGSEGV, &hostSegv, nullptr);
+            sigaction(SIGILL, &hostIll, nullptr);
+            sigaction(SIGPIPE, &hostPipe, nullptr);
+            restoreProcessSignals = false;
+        }
         dlclose(libHandle);
         libHandle = nullptr;
     }

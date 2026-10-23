@@ -8,3 +8,6 @@
 [submodule "libretrodroid/src/main/cpp/rcheevos"]
 	path = libretrodroid/src/main/cpp/rcheevos
 	url = https://github.com/RetroAchievements/rcheevos.git
+[submodule "libretrodroid/src/main/cpp/adrenotools"]
+	path = libretrodroid/src/main/cpp/adrenotools
+	url = https://github.com/bylaws/libadrenotools

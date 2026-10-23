@@ -1,3 +1,6 @@
+#if defined(__aarch64__)
+#include <adrenotools/driver.h>
+#endif
 #include "vulkanbridge.h"
 #include "log.h"
 #include <dlfcn.h>
@@ -32,7 +35,23 @@ bool VulkanBridge::negotiate(const retro_hw_render_context_negotiation_interface
 
 void VulkanBridge::initialize() {
     if (!requested || api.device) return;
-    loader = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+    if (!driverLibrary.empty()) {
+#if defined(__aarch64__)
+        const auto separator = driverLibrary.find_last_of('/');
+        if (separator == std::string::npos || hookDirectory.empty())
+            throw std::runtime_error("Invalid custom Vulkan driver path");
+        const auto directory = driverLibrary.substr(0, separator + 1);
+        const auto filename = driverLibrary.substr(separator + 1);
+        loader = adrenotools_open_libvulkan(RTLD_NOW | RTLD_LOCAL, ADRENOTOOLS_DRIVER_CUSTOM,
+            nullptr, hookDirectory.c_str(), directory.c_str(), filename.c_str(), nullptr, nullptr);
+        if (!loader) throw std::runtime_error("Could not load the selected Vulkan driver");
+        LOGI("Custom Vulkan driver active");
+#else
+        throw std::runtime_error("Custom Vulkan drivers require ARM64");
+#endif
+    } else {
+        loader = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+    }
     if (!loader) throw std::runtime_error("Vulkan loader unavailable");
     vkGetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(dlsym(loader, "vkGetInstanceProcAddr"));
     if (!vkGetInstanceProcAddr) throw std::runtime_error("Vulkan loader entry point unavailable");
@@ -54,6 +73,9 @@ void VulkanBridge::initialize() {
     } else {
         VkInstanceCreateInfo info{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
         info.pApplicationInfo = &app;
+        const char* extensions[] = {"VK_KHR_surface"};
+        info.enabledExtensionCount = 1;
+        info.ppEnabledExtensionNames = extensions;
         check(vkCreateInstance(&info, nullptr, &api.instance), "create instance");
     }
     if (!api.instance) throw std::runtime_error("Vulkan instance negotiation failed");
@@ -253,4 +275,5 @@ void VulkanBridge::destroy() {
     api = {}; negotiation = {}; image = {}; hasImage = false; requested = false; negotiatedDevice = false;
     pool = VK_NULL_HANDLE; command = VK_NULL_HANDLE; fence = VK_NULL_HANDLE; loader = nullptr;
     waits.clear(); commands.clear(); pixels.clear(); signal = VK_NULL_HANDLE;
+    driverLibrary.clear(); hookDirectory.clear();
 }

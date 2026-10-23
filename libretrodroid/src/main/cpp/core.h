@@ -19,6 +19,7 @@
 #define LIBRETRODROID_CORE_H
 
 #include <string>
+#include <signal.h>
 
 #include "../../libretro-common/include/libretro.h"
 
@@ -58,6 +59,8 @@ private:
     void close();
 
     void* libHandle = nullptr;
+    bool restoreProcessSignals = false;
+    struct sigaction hostSegv{}, hostIll{}, hostPipe{};
 };
 
 }

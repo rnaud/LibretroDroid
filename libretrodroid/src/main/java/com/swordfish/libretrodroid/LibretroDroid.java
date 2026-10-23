@@ -25,6 +25,8 @@ public class LibretroDroid {
         System.loadLibrary("libretrodroid");
     }
 
+    public static native void configureVulkanDriver(String library, String hooks);
+
     public static final int MOTION_SOURCE_DPAD = 0;
     public static final int MOTION_SOURCE_ANALOG_LEFT = 1;
     public static final int MOTION_SOURCE_ANALOG_RIGHT = 2;

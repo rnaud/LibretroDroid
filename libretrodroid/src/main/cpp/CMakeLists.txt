@@ -146,3 +146,9 @@ target_link_libraries(libretrodroid
                       oboe
                       GLESv3
 )
+
+# Rootless custom Vulkan drivers are opt-in per player session, ARM64 only.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    add_subdirectory(adrenotools)
+    target_link_libraries(libretrodroid adrenotools)
+endif()

@@ -26,6 +26,8 @@ class GLRetroViewData(context: Context) {
     var gameVirtualFiles: List<VirtualFile> = listOf()
     var systemDirectory: String = context.filesDir.absolutePath
     var savesDirectory: String = context.filesDir.absolutePath
+    /** Optional private driver library; null uses the system Vulkan driver. */
+    var vulkanDriverLibrary: String? = null
     var variables: Array<Variable> = arrayOf()
     var saveRAMState: ByteArray? = null
     var shader: ShaderConfig = ShaderConfig.Default
