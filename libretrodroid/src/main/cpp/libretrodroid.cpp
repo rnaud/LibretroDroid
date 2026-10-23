@@ -433,11 +433,15 @@ void LibretroDroid::destroy() {
 
     LOGD("Performing libretrodroid destroy");
 
+    // Stop the core's worker threads while their graphics contexts are still
+    // valid. ARMSX2's context_destroy releases its shared GS context; unloading
+    // afterwards attempts to destroy GS resources without a current context.
+    core->retro_unload_game();
+
     if (Environment::getInstance().getHwContextDestroy() != nullptr) {
         Environment::getInstance().getHwContextDestroy()();
     }
 
-    core->retro_unload_game();
     core->retro_deinit();
 
     video = nullptr;
