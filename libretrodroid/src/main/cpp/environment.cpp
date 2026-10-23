@@ -28,6 +28,7 @@
 #include "../../libretro-common/include/libretro.h"
 #include "log.h"
 #include "environment.h"
+#include "vulkanbridge.h"
 #include "vfs/vfs.h"
 #include "microphone/microphoneinterface.h"
 
@@ -96,14 +97,19 @@ void Environment::updateVariable(const std::string& key, const std::string& valu
 
 bool Environment::environment_handle_set_variables(const struct retro_variable* received) {
     unsigned count = 0;
+    if (!received) return false;
     while (received[count].key != nullptr) {
+        if (!received[count].value) { ++count; continue; }
         LOGD("Received variable %s: %s", received[count].key, received[count].value);
 
         std::string key(received[count].key);
         std::string description(received[count].value);
         std::string value(received[count].value);
 
-        auto firstValueStart = value.find(';') + 2;
+        const auto separator = value.find(';');
+        if (separator == std::string::npos) { ++count; continue; }
+        auto firstValueStart = value.find_first_not_of(' ', separator + 1);
+        if (firstValueStart == std::string::npos) { ++count; continue; }
         auto firstValueEnd = value.find('|', firstValueStart);
         value = value.substr(firstValueStart, firstValueEnd - firstValueStart);
 
@@ -194,7 +200,10 @@ bool Environment::environment_handle_set_controller_info(const struct retro_cont
 }
 
 bool Environment::environment_handle_set_hw_render(struct retro_hw_render_callback* hw_render_callback) {
-    useHWAcceleration = true;
+    const bool vulkan = hw_render_callback->context_type == RETRO_HW_CONTEXT_VULKAN;
+    VulkanBridge::get().requested = vulkan;
+    useHWAcceleration = !vulkan;
+    if (vulkan) pixelFormat = RETRO_PIXEL_FORMAT_XRGB8888;
     useDepth = hw_render_callback->depth;
     useStencil = hw_render_callback->stencil;
     bottomLeftOrigin = hw_render_callback->bottom_left_origin;
@@ -309,6 +318,20 @@ bool Environment::handle_callback_environment(unsigned cmd, void *data) {
             return true;
         }
 
+        case RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT: {
+            auto* support = static_cast<retro_hw_render_context_negotiation_interface*>(data);
+            if (!support || support->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN) return false;
+            support->interface_version = 2;
+            return true;
+        }
+        case RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE:
+            return VulkanBridge::get().negotiate(static_cast<retro_hw_render_context_negotiation_interface_vulkan*>(data));
+        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE: {
+            auto* api = VulkanBridge::get().interface();
+            if (!api || !data) return false;
+            *static_cast<const retro_hw_render_interface**>(data) = reinterpret_cast<const retro_hw_render_interface*>(api);
+            return true;
+        }
         case RETRO_ENVIRONMENT_SET_HW_RENDER:
             LOGD("Called RETRO_ENVIRONMENT_SET_HW_RENDER");
             return environment_handle_set_hw_render(static_cast<struct retro_hw_render_callback*>(data));

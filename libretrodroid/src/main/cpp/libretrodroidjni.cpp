@@ -456,7 +456,12 @@ JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_onSurfaceC
     JNIEnv* env,
     jclass obj
 ) {
-    LibretroDroid::getInstance().onSurfaceCreated();
+    try {
+        LibretroDroid::getInstance().onSurfaceCreated();
+    } catch (std::exception& exception) {
+        LOGE("Graphics context initialization failed: %s", exception.what());
+        JavaUtils::throwRetroException(env, ERROR_GL_NOT_COMPATIBLE);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_onMotionEvent(

@@ -71,6 +71,7 @@ add_library(libretrodroid SHARED
         libretrodroidjni.cpp
         libretrodroid.h
         libretrodroid.cpp
+        vulkanbridge.cpp
         log.h
         core.h
         core.cpp

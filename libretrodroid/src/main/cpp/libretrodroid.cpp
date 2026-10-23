@@ -39,6 +39,7 @@
 #include "shadermanager.h"
 #include "utils/javautils.h"
 #include "environment.h"
+#include "vulkanbridge.h"
 #include "renderers/es3/framebufferrenderer.h"
 #include "renderers/es2/imagerendereres2.h"
 #include "renderers/es3/imagerendereres3.h"
@@ -60,6 +61,10 @@ void LibretroDroid::callback_hw_video_refresh(
     size_t pitch
 ) {
     LOGD("hw video refresh callback called %i %i", width, height);
+    if (VulkanBridge::get().requested) {
+        data = VulkanBridge::get().readFrame(width, height, data == nullptr);
+        pitch = width * 4;
+    }
     LibretroDroid::getInstance().handleVideoRefresh(data, width, height, pitch);
 }
 
@@ -208,11 +213,12 @@ std::pair<int8_t*, size_t> LibretroDroid::serializeSRAM() {
 
 void LibretroDroid::onSurfaceChanged(unsigned int width, unsigned int height) {
     LOGD("Performing libretrodroid onSurfaceChanged");
-    video->updateScreenSize(width, height);
+    if (video) video->updateScreenSize(width, height);
 }
 
 void LibretroDroid::onSurfaceCreated() {
     LOGD("Performing libretrodroid onSurfaceCreated");
+    VulkanBridge::get().initialize();
 
     struct retro_system_av_info system_av_info {};
     core->retro_get_system_av_info(&system_av_info);
@@ -459,6 +465,7 @@ void LibretroDroid::destroy() {
     if (restoreSignalStack) sigaltstack(&callerSignalStack, nullptr);
 
     video = nullptr;
+    VulkanBridge::get().destroy();
     core = nullptr;
     rumble = nullptr;
     fpsSync = nullptr;
