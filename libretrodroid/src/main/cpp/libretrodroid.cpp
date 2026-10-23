@@ -15,6 +15,7 @@
  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <signal.h>
 #include <jni.h>
 
 #include <EGL/egl.h>
@@ -433,16 +434,29 @@ void LibretroDroid::destroy() {
 
     LOGD("Performing libretrodroid destroy");
 
-    // Stop the core's worker threads while their graphics contexts are still
-    // valid. ARMSX2's context_destroy releases its shared GS context; unloading
-    // afterwards attempts to destroy GS resources without a current context.
-    core->retro_unload_game();
+    // ARMSX2 releases its GS-thread context in context_destroy, so its worker
+    // must stop first. Other cores retain their existing order: PPSSPP deletes
+    // its graphics-context object in unload_game and its destroy callback
+    // would dereference that deleted object if called afterwards.
+    retro_system_info info{};
+    core->retro_get_system_info(&info);
+    // PPSSPP installs its fault handler on the emulation thread, but unload
+    // restores that thread's saved alternate signal stack on our caller (the
+    // Android UI thread). Preserve the UI thread's own stack across cleanup.
+    stack_t callerSignalStack{};
+    const bool restoreSignalStack = info.library_name &&
+        std::string(info.library_name) == "PPSSPP" &&
+        sigaltstack(nullptr, &callerSignalStack) == 0;
+    const bool unloadFirst = info.library_name && std::string(info.library_name) == "ARMSX2";
+    if (unloadFirst) core->retro_unload_game();
 
     if (Environment::getInstance().getHwContextDestroy() != nullptr) {
         Environment::getInstance().getHwContextDestroy()();
     }
 
+    if (!unloadFirst) core->retro_unload_game();
     core->retro_deinit();
+    if (restoreSignalStack) sigaltstack(&callerSignalStack, nullptr);
 
     video = nullptr;
     core = nullptr;
