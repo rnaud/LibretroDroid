@@ -16,6 +16,14 @@
  */
 
 #include <signal.h>
+
+namespace {
+// Vita installs a SIGSEGV handler but does not unregister it on deinit.
+// Restore the host handler before the handler code is unmapped.
+struct sigaction vitaHostSegv{};
+bool restoreVitaSegv = false;
+}
+
 #include <jni.h>
 
 #include <EGL/egl.h>
@@ -326,6 +334,10 @@ void LibretroDroid::create(
         updateVariable(v);
     });
 
+    retro_system_info signalInfo{};
+    core->retro_get_system_info(&signalInfo);
+    restoreVitaSegv = signalInfo.library_name && std::string(signalInfo.library_name) == "Vita3K" &&
+        sigaction(SIGSEGV, nullptr, &vitaHostSegv) == 0;
     core->retro_init();
 
     preferLowLatencyAudio = lowLatencyAudio;
@@ -466,6 +478,10 @@ void LibretroDroid::destroy() {
 
     video = nullptr;
     VulkanBridge::get().destroy();
+    if (restoreVitaSegv) {
+        sigaction(SIGSEGV, &vitaHostSegv, nullptr);
+        restoreVitaSegv = false;
+    }
     core = nullptr;
     rumble = nullptr;
     fpsSync = nullptr;
