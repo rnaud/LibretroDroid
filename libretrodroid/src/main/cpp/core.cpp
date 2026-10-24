@@ -16,11 +16,23 @@
  */
 
 #include <dlfcn.h>
+#include <unordered_map>
 #include "core.h"
 
 #include "log.h"
 
 namespace libretrodroid {
+
+namespace {
+struct CoreSignals {
+    struct sigaction segv{}, ill{}, pipe{};
+};
+// Some Android cores remain resident after dlclose (TLS/NODELETE). Their static
+// constructors do not run on a later dlopen. Reuse handlers only when NOLOAD
+// confirms the same library is still mapped; a fresh load captures fresh pointers.
+std::unordered_map<std::string, CoreSignals> residentSignals;
+}
+
 
 Core::Core(const std::string& soCorePath) {
     open(soCorePath);
@@ -39,7 +51,9 @@ void Core::open(const std::string& soCorePath) {
     // RPCS3 installs handlers in static constructors, before retro_init.
     const bool capturedSignals = sigaction(SIGSEGV, nullptr, &hostSegv) == 0 &&
         sigaction(SIGILL, nullptr, &hostIll) == 0 && sigaction(SIGPIPE, nullptr, &hostPipe) == 0;
-    libHandle = dlopen(soCorePath.c_str(), RTLD_LOCAL | RTLD_LAZY);
+    libHandle = dlopen(soCorePath.c_str(), RTLD_LOCAL | RTLD_LAZY | RTLD_NOLOAD);
+    const bool wasResident = libHandle != nullptr;
+    if (!libHandle) libHandle = dlopen(soCorePath.c_str(), RTLD_LOCAL | RTLD_LAZY);
     if (!libHandle) {
         LOGE("Cannot dlopen library, closing");
         throw std::runtime_error("Cannot dlopen library");
@@ -53,6 +67,22 @@ void Core::open(const std::string& soCorePath) {
     retro_system_info info{};
     retro_get_system_info(&info);
     restoreProcessSignals = capturedSignals && info.library_name && std::string(info.library_name) == "RPCS3";
+    if (restoreProcessSignals) {
+        const auto previous = residentSignals.find(soCorePath);
+        if (wasResident && previous != residentSignals.end()) {
+            sigaction(SIGSEGV, &previous->second.segv, nullptr);
+            sigaction(SIGILL, &previous->second.ill, nullptr);
+            sigaction(SIGPIPE, &previous->second.pipe, nullptr);
+            LOGI("Restored resident RPCS3 signal handlers for a new session");
+        } else {
+            CoreSignals handlers;
+            if (sigaction(SIGSEGV, nullptr, &handlers.segv) == 0 &&
+                sigaction(SIGILL, nullptr, &handlers.ill) == 0 &&
+                sigaction(SIGPIPE, nullptr, &handlers.pipe) == 0) {
+                residentSignals[soCorePath] = handlers;
+            }
+        }
+    }
     retro_get_system_av_info = (void (*)(struct retro_system_av_info*)) get_symbol(libHandle, "retro_get_system_av_info");
     retro_set_controller_port_device = (void (*)(unsigned, unsigned)) get_symbol(libHandle, "retro_set_controller_port_device");
     retro_reset = (void (*)()) get_symbol(libHandle, "retro_reset");

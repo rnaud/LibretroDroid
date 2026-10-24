@@ -692,7 +692,15 @@ JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_step(
     jclass obj,
     jobject glRetroView
 ) {
-    LibretroDroid::getInstance().step();
+    try {
+        LibretroDroid::getInstance().step();
+    } catch (std::exception& exception) {
+        // Rendering failures (including Vulkan device loss) must reach the
+        // view's error flow instead of unwinding across JNI and aborting Android.
+        LOGE("Error in step: %s", exception.what());
+        JavaUtils::throwRetroException(env, ERROR_GENERIC);
+        return;
+    }
 
     if (LibretroDroid::getInstance().requiresVideoRefresh()) {
         LibretroDroid::getInstance().clearRequiresVideoRefresh();
